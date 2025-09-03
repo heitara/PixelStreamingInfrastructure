@@ -204,6 +204,19 @@ export class MockRTCPeerConnectionImpl implements RTCPeerConnection {
     }
 }
 
+/*
+ * Have to add this (and the mocks below) because Jest does not know about these WebRTC classes by default.
+ * When it calls them that are undefined functions, so we must provide our own mock implementations.
+*/
+
+export class MockRTCPeerConnectionIceEventImpl extends Event implements RTCPeerConnectionIceEvent {
+    candidate: RTCIceCandidate | null;
+    constructor(name: string, data: RTCPeerConnectionIceEventInit) {
+        super(name, data);
+        this.candidate = data.candidate || null;
+    }
+}
+
 export class MockRTCIceCandidateImpl implements RTCIceCandidate {
     address: string | null;
     candidate: string;
@@ -305,11 +318,14 @@ export class MockRTCTrackEventImpl extends Event implements RTCTrackEvent {
     }
 }
 
+// Inject our mock functions into the global namespace so that when Jest calls WebRTC functions
+// instead of being undefined it will use our mock implementations.
 const originalRTCPeerConnection = global.RTCPeerConnection;
 const originalRTCIceCandidate = global.RTCIceCandidate;
 const originalRTCDataChannel = global.RTCDataChannel;
 const originalRTCDataChannelEvent = global.RTCDataChannelEvent;
 const originalRTCTrackEvent = global.RTCTrackEvent;
+const originalRTCPeerConnectionIceEvent = global.RTCPeerConnectionIceEvent;
 export const mockRTCPeerConnection = (): [
     MockRTCPeerConnectionSpyFunctions,
     MockRTCPeerConnectionTriggerFunctions
@@ -327,6 +343,7 @@ export const mockRTCPeerConnection = (): [
     global.RTCDataChannel = MockRTCDataChannelImpl;
     global.RTCDataChannelEvent = MockRTCDataChannelEventImpl;
     global.RTCTrackEvent = MockRTCTrackEventImpl;
+    global.RTCPeerConnectionIceEvent = MockRTCPeerConnectionIceEventImpl;
     return [spyFunctions, triggerFunctions];
 };
 
@@ -336,6 +353,7 @@ export const unmockRTCPeerConnection = () => {
     global.RTCDataChannel = originalRTCDataChannel;
     global.RTCDataChannelEvent = originalRTCDataChannelEvent;
     global.RTCTrackEvent = originalRTCTrackEvent;
+    global.RTCPeerConnectionIceEvent = originalRTCPeerConnectionIceEvent;
     spyFunctions.constructorSpy = null;
     spyFunctions.closeSpy = null;
     spyFunctions.setRemoteDescriptionSpy = null;

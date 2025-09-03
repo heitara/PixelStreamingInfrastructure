@@ -23,6 +23,10 @@ export class PeerConnectionController {
     videoTrack: MediaStreamTrack;
     audioTrack: MediaStreamTrack;
     latencyCalculator: LatencyCalculator;
+    hasSentLocalDescription: boolean;
+    // We may receive ICE candidates before we have sent our local description,
+    // so we need to queue them for sending after we have sent the local description.
+    queuedIceCandidates: RTCPeerConnectionIceEvent[];
 
     /**
      * Create a new RTC Peer Connection client
@@ -54,6 +58,8 @@ export class PeerConnectionController {
         this.aggregatedStats = new AggregatedStats();
         this.preferredCodec = preferredCodec;
         this.updateCodecSelection = true;
+        this.hasSentLocalDescription = false;
+        this.queuedIceCandidates = [];
     }
 
     /**
@@ -86,6 +92,7 @@ export class PeerConnectionController {
                     offer.sdp = this.mungeSDP(offer.sdp, useMic);
                     this.peerConnection?.setLocalDescription(offer);
                     this.onSendWebRTCOffer(offer);
+                    this.handleOnLocalDescriptionSent();
                 })
                 .catch(() => {
                     this.showTextOverlaySetupFailure();
@@ -145,6 +152,7 @@ export class PeerConnectionController {
                     })
                     .then(() => {
                         this.onSetLocalDescription(this.peerConnection?.currentLocalDescription);
+                        this.handleOnLocalDescriptionSent();
                     })
                     .catch((err) => {
                         Logger.Error(`createAnswer() failed - ${err}`);
@@ -338,12 +346,30 @@ export class PeerConnectionController {
         this.onTrack(event);
     }
 
+    handleOnLocalDescriptionSent() {
+        // Local description has been sent, so we can now send any queued ICE candidates
+        this.hasSentLocalDescription = true;
+        if (this.queuedIceCandidates && this.queuedIceCandidates.length > 0) {
+            for (const iceCandidateEvent of this.queuedIceCandidates) {
+                this.handleIceCandidate(iceCandidateEvent);
+            }
+            this.queuedIceCandidates = [];
+        }
+    }
+
     /**
-     * Activates the onPeerIceCandidate
-     * @param event - The peer ice candidate
+     * Handler for when a local ICE candidate is generated.
+     * @param event - The event that is fired when a local peer ice candidate is generated (or generation is complete)
      */
     handleIceCandidate(event: RTCPeerConnectionIceEvent) {
-        this.onPeerIceCandidate(event);
+        // Check if we have sent our local description yet, if not then don't send ICE candidates
+        // This prevents us sending ICE candidates before the offer/answer which can cause issues with libWebRTC which requires the remote description first.
+        if (!this.hasSentLocalDescription) {
+            this.queuedIceCandidates.push(event);
+            return;
+        } else {
+            this.onPeerIceCandidate(event);
+        }
     }
 
     /**
