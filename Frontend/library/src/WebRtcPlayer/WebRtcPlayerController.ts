@@ -1057,9 +1057,13 @@ export class WebRtcPlayerController {
         if (keepaliveDelay > 0) {
             this.keepalive = new KeepaliveMonitor(this.protocol, keepaliveDelay);
             this.keepalive.onTimeout = () => {
-                // if the ping fails just disconnect
-                Logger.Error(`Protocol timeout`);
-                this.protocol.disconnect();
+                if (this.config.isFlagEnabled(Flags.DisconnectAfterPingTimeout)) {
+                    // if the ping fails just disconnect
+                    Logger.Error(
+                        `Websocket timed out, we did not get a 'pong' message within the expected time window.`
+                    );
+                    this.protocol.disconnect();
+                }
             };
         }
     }

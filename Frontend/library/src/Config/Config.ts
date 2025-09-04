@@ -17,6 +17,7 @@ export class Flags {
     static AutoConnect = 'AutoConnect' as const;
     static AutoPlayVideo = 'AutoPlayVideo' as const;
     static AFKDetection = 'TimeoutIfIdle' as const;
+    static DisconnectAfterPingTimeout = 'DisconnectAfterPingTimeout' as const;
     static HoveringMouseMode = 'HoveringMouse' as const;
     static ForceMonoAudio = 'ForceMonoAudio' as const;
     static ForceTURN = 'ForceTURN' as const;
@@ -432,6 +433,19 @@ export class Config {
                 settings && Object.prototype.hasOwnProperty.call(settings, Flags.AFKDetection)
                     ? settings[Flags.AFKDetection]
                     : false,
+                useUrlParams
+            )
+        );
+
+        this.flags.set(
+            Flags.DisconnectAfterPingTimeout,
+            new SettingFlag(
+                Flags.DisconnectAfterPingTimeout,
+                'Disconnect after ping timeout',
+                'Timeout the stream if we do not receive a pong message within the expected time window.',
+                settings && Object.prototype.hasOwnProperty.call(settings, Flags.DisconnectAfterPingTimeout)
+                    ? settings[Flags.DisconnectAfterPingTimeout]
+                    : true,
                 useUrlParams
             )
         );

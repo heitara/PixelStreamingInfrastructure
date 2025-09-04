@@ -1,0 +1,4 @@
+dist/cjs/__test__/
+dist/esm/__test__/
+coverage/
+src/

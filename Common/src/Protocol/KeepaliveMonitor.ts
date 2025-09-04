@@ -14,6 +14,7 @@ export class KeepaliveMonitor {
     private keepalive?: ReturnType<typeof setInterval>;
     private alive: boolean = false;
     private rtt: number = 0;
+    private lastPingTime: number = 0;
 
     // naming a bound function so we can add and then remove it with on and off.
     private onResponse: (pongMsg: Messages.pong) => void;
@@ -64,15 +65,14 @@ export class KeepaliveMonitor {
 
         // mark the connection as temporarily dead until we get a response from the ping
         this.alive = false;
-        this.protocol.sendMessage(
-            MessageHelpers.createMessage(Messages.ping, { time: new Date().getTime() })
-        );
+        this.lastPingTime = new Date().getTime();
+        this.protocol.sendMessage(MessageHelpers.createMessage(Messages.ping, { time: this.lastPingTime }));
     }
 
-    private onHeartbeatResponse(pongMsg: Messages.pong): void {
+    private onHeartbeatResponse(_: Messages.pong): void {
         // we got a pong response from the other side, the connection is good.
         // we also store the round trip time if anyone is curious
-        this.rtt = new Date().getTime() - pongMsg.time;
+        this.rtt = new Date().getTime() - this.lastPingTime;
         this.alive = true;
     }
 }
