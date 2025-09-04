@@ -312,7 +312,7 @@ describe('PixelStreaming', () => {
         expect(eventSpy).toHaveBeenCalledWith(new WebRtcSdpEvent());
     });
 
-    it('should add an ICE candidate when receiving a iceCandidate message', () => {
+    it('should add an ICE candidate when receiving a iceCandidate message', async () => {
         const config = new Config({ initialSettings: {ss: mockSignallingUrl, AutoConnect: true}});
         const pixelStreaming = new PixelStreaming(config);
 
@@ -320,6 +320,10 @@ describe('PixelStreaming', () => {
         triggerConfigMessage();
         triggerStreamerListMessage(streamerIdList);
         triggerSdpOfferMessage();
+        
+        // Wait for the async setRemoteDescription to complete
+        await flushPromises();
+        
         triggerIceCandidateMessage();
 
         expect(rtcPeerConnectionSpyFunctions.addIceCandidateSpy).toHaveBeenCalledWith(iceCandidate)
@@ -608,151 +612,151 @@ describe('PixelStreaming', () => {
     });
 
     describe('ICE candidate queuing', () => {
-        it('should queue ICE candidates when generated before local description is sent', () => {
+        it('should queue remote ICE candidates when received before remote description is set', () => {
             const config = new Config({ initialSettings: {ss: mockSignallingUrl, AutoConnect: true}});
             const pixelStreaming = new PixelStreaming(config);
 
             triggerWebSocketOpen();
             triggerConfigMessage();
             triggerStreamerListMessage(streamerIdList);
-            triggerSdpOfferMessage();
+            // Note: Not triggering SDP offer yet, so remote description is not set
 
-            // At this point, we should have a peer connection but no local description sent yet
+            // At this point, we should have a peer connection but no remote description set yet
             const peerConnectionController = pixelStreaming.webRtcController.peerConnectionController;
-            expect(peerConnectionController.hasSentLocalDescription).toBe(false);
-            expect(peerConnectionController.queuedIceCandidates).toHaveLength(0);
+            expect(peerConnectionController.hasSetRemoteDescription).toBe(false);
+            expect(peerConnectionController.queuedRemoteIceCandidates).toHaveLength(0);
 
-            // Simulate ICE candidate generation before local description is sent
-            const mockIceCandidate = new RTCIceCandidate(iceCandidate);
-            rtcPeerConnectionTriggerFunctions.triggerOnIceCandidate?.({ candidate: mockIceCandidate });
+            // Simulate receiving remote ICE candidate before remote description is set
+            triggerIceCandidateMessage();
 
-            // ICE candidate should be queued, not sent immediately
-            expect(peerConnectionController.queuedIceCandidates).toHaveLength(1);
-            expect(webSocketSpyFunctions.sendSpy).not.toHaveBeenCalledWith(
-                expect.stringMatching(/"type":"iceCandidate"/)
-            );
+            // Remote ICE candidate should be queued, not added to peer connection immediately
+            expect(peerConnectionController.queuedRemoteIceCandidates).toHaveLength(1);
+            expect(rtcPeerConnectionSpyFunctions.addIceCandidateSpy).not.toHaveBeenCalled();
         });
 
-        it('should send queued ICE candidates after local description is sent', () => {
+        it('should process queued remote ICE candidates after remote description is set', async () => {
             const config = new Config({ initialSettings: {ss: mockSignallingUrl, AutoConnect: true}});
             const pixelStreaming = new PixelStreaming(config);
 
             triggerWebSocketOpen();
             triggerConfigMessage();
             triggerStreamerListMessage(streamerIdList);
-            triggerSdpOfferMessage();
+            // Note: Not triggering SDP offer yet, so remote description is not set
 
             const peerConnectionController = pixelStreaming.webRtcController.peerConnectionController;
             
-            // Generate ICE candidate before local description is sent
-            const mockIceCandidate = new RTCIceCandidate(iceCandidate);
-            rtcPeerConnectionTriggerFunctions.triggerOnIceCandidate?.({ candidate: mockIceCandidate });
+            // Receive remote ICE candidate before remote description is set
+            triggerIceCandidateMessage();
 
-            expect(peerConnectionController.queuedIceCandidates).toHaveLength(1);
-            expect(peerConnectionController.hasSentLocalDescription).toBe(false);
+            expect(peerConnectionController.queuedRemoteIceCandidates).toHaveLength(1);
+            expect(peerConnectionController.hasSetRemoteDescription).toBe(false);
+            expect(rtcPeerConnectionSpyFunctions.addIceCandidateSpy).not.toHaveBeenCalled();
 
-            // Simulate the local description being sent (this would normally happen in createAnswer)
-            peerConnectionController.handleOnLocalDescriptionSent();
+            // Now trigger the SDP offer, which sets the remote description
+            triggerSdpOfferMessage();
+            
+            // Wait for the async setRemoteDescription to complete
+            await flushPromises();
 
-            // After local description is sent, queued candidates should be processed
-            expect(peerConnectionController.hasSentLocalDescription).toBe(true);
-            expect(peerConnectionController.queuedIceCandidates).toHaveLength(0);
-            expect(webSocketSpyFunctions.sendSpy).toHaveBeenCalledWith(
-                expect.stringMatching(/"type":"iceCandidate"/)
-            );
+            // After remote description is set, queued candidates should be processed
+            expect(peerConnectionController.hasSetRemoteDescription).toBe(true);
+            expect(peerConnectionController.queuedRemoteIceCandidates).toHaveLength(0);
+            expect(rtcPeerConnectionSpyFunctions.addIceCandidateSpy).toHaveBeenCalledWith(iceCandidate);
         });
 
-        it('should send ICE candidates immediately if local description has already been sent', () => {
+        it('should process remote ICE candidates immediately if remote description has already been set', async () => {
             const config = new Config({ initialSettings: {ss: mockSignallingUrl, AutoConnect: true}});
             const pixelStreaming = new PixelStreaming(config);
 
             triggerWebSocketOpen();
             triggerConfigMessage();
             triggerStreamerListMessage(streamerIdList);
-            triggerSdpOfferMessage();
+            triggerSdpOfferMessage(); // This sets the remote description
+            
+            // Wait for the async setRemoteDescription to complete
+            await flushPromises();
 
             const peerConnectionController = pixelStreaming.webRtcController.peerConnectionController;
             
-            // Simulate that local description has already been sent
-            peerConnectionController.handleOnLocalDescriptionSent();
-            expect(peerConnectionController.hasSentLocalDescription).toBe(true);
+            expect(peerConnectionController.hasSetRemoteDescription).toBe(true);
 
-            // Clear any previous send calls
-            (webSocketSpyFunctions.sendSpy as jest.Mock).mockClear();
+            // Clear any previous addIceCandidate calls
+            (rtcPeerConnectionSpyFunctions.addIceCandidateSpy as jest.Mock).mockClear();
 
-            // Generate ICE candidate after local description is sent
-            const mockIceCandidate = new RTCIceCandidate(iceCandidate);
-            rtcPeerConnectionTriggerFunctions.triggerOnIceCandidate?.({ candidate: mockIceCandidate });
+            // Receive remote ICE candidate after remote description is set
+            triggerIceCandidateMessage();
 
-            // ICE candidate should be sent immediately, not queued
-            expect(peerConnectionController.queuedIceCandidates).toHaveLength(0);
-            expect(webSocketSpyFunctions.sendSpy).toHaveBeenCalledWith(
-                expect.stringMatching(/"type":"iceCandidate"/)
-            );
+            // Remote ICE candidate should be processed immediately, not queued
+            expect(peerConnectionController.queuedRemoteIceCandidates).toHaveLength(0);
+            expect(rtcPeerConnectionSpyFunctions.addIceCandidateSpy).toHaveBeenCalledWith(iceCandidate);
         });
 
-        it('should handle multiple queued ICE candidates correctly', () => {
+        it('should handle multiple queued remote ICE candidates correctly', async () => {
             const config = new Config({ initialSettings: {ss: mockSignallingUrl, AutoConnect: true}});
             const pixelStreaming = new PixelStreaming(config);
 
             triggerWebSocketOpen();
             triggerConfigMessage();
             triggerStreamerListMessage(streamerIdList);
-            triggerSdpOfferMessage();
+            // Note: Not triggering SDP offer yet, so remote description is not set
 
             const peerConnectionController = pixelStreaming.webRtcController.peerConnectionController;
             
-            // Generate multiple ICE candidates before local description is sent
-            const mockIceCandidate1 = new RTCIceCandidate({
+            // Simulate receiving multiple remote ICE candidates before remote description is set
+            const mockIceCandidate1: RTCIceCandidateInit = {
                 ...iceCandidate,
                 candidate: "candidate:1 1 udp 2122260223 192.168.1.89 64674 typ host generation 0 ufrag +JE1 network-id 1"
-            });
-            const mockIceCandidate2 = new RTCIceCandidate({
+            };
+            const mockIceCandidate2: RTCIceCandidateInit = {
                 ...iceCandidate,
                 candidate: "candidate:2 1 udp 2122260223 192.168.1.89 64675 typ host generation 0 ufrag +JE1 network-id 1"
-            });
+            };
 
-            rtcPeerConnectionTriggerFunctions.triggerOnIceCandidate?.({ candidate: mockIceCandidate1 });
-            rtcPeerConnectionTriggerFunctions.triggerOnIceCandidate?.({ candidate: mockIceCandidate2 });
+            triggerSignallingMessage(MessageHelpers.createMessage(Messages.iceCandidate, { candidate: mockIceCandidate1 }));
+            triggerSignallingMessage(MessageHelpers.createMessage(Messages.iceCandidate, { candidate: mockIceCandidate2 }));
 
             // Both candidates should be queued
-            expect(peerConnectionController.queuedIceCandidates).toHaveLength(2);
-            expect(peerConnectionController.hasSentLocalDescription).toBe(false);
+            expect(peerConnectionController.queuedRemoteIceCandidates).toHaveLength(2);
+            expect(peerConnectionController.hasSetRemoteDescription).toBe(false);
+            expect(rtcPeerConnectionSpyFunctions.addIceCandidateSpy).not.toHaveBeenCalled();
 
-            // Clear any previous send calls
-            (webSocketSpyFunctions.sendSpy as jest.Mock).mockClear();
+            // Now trigger the SDP offer, which sets the remote description
+            triggerSdpOfferMessage();
+            
+            // Wait for the async setRemoteDescription to complete
+            await flushPromises();
 
-            // Simulate local description being sent
-            peerConnectionController.handleOnLocalDescriptionSent();
-
-            // All queued candidates should be sent and queue should be empty
-            expect(peerConnectionController.hasSentLocalDescription).toBe(true);
-            expect(peerConnectionController.queuedIceCandidates).toHaveLength(0);
-            expect(webSocketSpyFunctions.sendSpy).toHaveBeenCalledTimes(2);
-            expect(webSocketSpyFunctions.sendSpy).toHaveBeenCalledWith(
-                expect.stringMatching(/"type":"iceCandidate"/)
-            );
+            // All queued candidates should be processed and queue should be empty
+            expect(peerConnectionController.hasSetRemoteDescription).toBe(true);
+            expect(peerConnectionController.queuedRemoteIceCandidates).toHaveLength(0);
+            expect(rtcPeerConnectionSpyFunctions.addIceCandidateSpy).toHaveBeenCalledTimes(2);
+            expect(rtcPeerConnectionSpyFunctions.addIceCandidateSpy).toHaveBeenCalledWith(mockIceCandidate1);
+            expect(rtcPeerConnectionSpyFunctions.addIceCandidateSpy).toHaveBeenCalledWith(mockIceCandidate2);
         });
 
-        it('should queue ICE candidates when candidate is null (end of gathering) but will not send it', () => {
+        it('should handle null remote ICE candidates (end of gathering) correctly', async () => {
             const config = new Config({ initialSettings: {ss: mockSignallingUrl, AutoConnect: true}});
             const pixelStreaming = new PixelStreaming(config);
 
             triggerWebSocketOpen();
             triggerConfigMessage();
             triggerStreamerListMessage(streamerIdList);
-            triggerSdpOfferMessage();
+            triggerSdpOfferMessage(); // Set remote description first
+
+            // Wait for the async setRemoteDescription to complete
+            await flushPromises();
 
             const peerConnectionController = pixelStreaming.webRtcController.peerConnectionController;
             
-            // Generate ICE candidate event with null candidate (end of gathering)
-            rtcPeerConnectionTriggerFunctions.triggerOnIceCandidate?.({ candidate: null });
+            // Clear any previous addIceCandidate calls
+            (rtcPeerConnectionSpyFunctions.addIceCandidateSpy as jest.Mock).mockClear();
 
-            // Candidates should be queued for null candidate but not sent
-            expect(peerConnectionController.queuedIceCandidates).toHaveLength(1);
-            expect(webSocketSpyFunctions.sendSpy).not.toHaveBeenCalledWith(
-                expect.stringMatching(/"type":"iceCandidate"/)
-            );
+            // Simulate receiving a null ICE candidate (end of gathering) from remote peer
+            triggerSignallingMessage(MessageHelpers.createMessage(Messages.iceCandidate, { candidate: null }));
+
+            // Null candidates should not be queued or added to peer connection
+            expect(peerConnectionController.queuedRemoteIceCandidates).toHaveLength(0);
+            expect(rtcPeerConnectionSpyFunctions.addIceCandidateSpy).not.toHaveBeenCalled();
         });
     });
 });

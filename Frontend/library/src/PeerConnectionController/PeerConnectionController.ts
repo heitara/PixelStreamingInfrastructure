@@ -23,10 +23,12 @@ export class PeerConnectionController {
     videoTrack: MediaStreamTrack;
     audioTrack: MediaStreamTrack;
     latencyCalculator: LatencyCalculator;
-    hasSentLocalDescription: boolean;
-    // We may receive ICE candidates before we have sent our local description,
-    // so we need to queue them for sending after we have sent the local description.
-    queuedIceCandidates: RTCPeerConnectionIceEvent[];
+    hasSetRemoteDescription: boolean;
+    // We may receive ICE candidates before we have set our remote description,
+    // we cannot `addIceCandidate` these without the ice-ufrag/ice-pwd from the remote description
+    // so we need to queue them until we have set the remote description.
+    // Note: This queuing is not required for local candidates as they are guaranteed to created AFTER setting local description.
+    queuedRemoteIceCandidates: RTCIceCandidate[];
 
     /**
      * Create a new RTC Peer Connection client
@@ -58,8 +60,8 @@ export class PeerConnectionController {
         this.aggregatedStats = new AggregatedStats();
         this.preferredCodec = preferredCodec;
         this.updateCodecSelection = true;
-        this.hasSentLocalDescription = false;
-        this.queuedIceCandidates = [];
+        this.hasSetRemoteDescription = false;
+        this.queuedRemoteIceCandidates = [];
     }
 
     /**
@@ -91,8 +93,7 @@ export class PeerConnectionController {
                     this.showTextOverlayConnecting();
                     offer.sdp = this.mungeSDP(offer.sdp, useMic);
                     this.peerConnection?.setLocalDescription(offer);
-                    this.onSendWebRTCOffer(offer);
-                    this.handleOnLocalDescriptionSent();
+                    this.handleOnSetLocalDescription(offer);
                 })
                 .catch(() => {
                     this.showTextOverlaySetupFailure();
@@ -119,7 +120,7 @@ export class PeerConnectionController {
 
         this.peerConnection?.setRemoteDescription(offer).then(() => {
             // Fire event for when remote offer description is set
-            this.onSetRemoteDescription(offer);
+            this.handleOnSetRemoteDescription(offer);
 
             const isLocalhostConnection =
                 location.hostname === 'localhost' || location.hostname === '127.0.0.1';
@@ -146,13 +147,12 @@ export class PeerConnectionController {
             this.setupTransceiversAsync(useMic, useCamera).finally(() => {
                 this.peerConnection
                     ?.createAnswer()
-                    .then((Answer: RTCSessionDescriptionInit) => {
-                        Answer.sdp = this.mungeSDP(Answer.sdp, useMic);
-                        return this.peerConnection?.setLocalDescription(Answer);
+                    .then((answer: RTCSessionDescriptionInit) => {
+                        answer.sdp = this.mungeSDP(answer.sdp, useMic);
+                        return this.peerConnection?.setLocalDescription(answer);
                     })
                     .then(() => {
-                        this.onSetLocalDescription(this.peerConnection?.currentLocalDescription);
-                        this.handleOnLocalDescriptionSent();
+                        this.handleOnSetLocalDescription(this.peerConnection?.currentLocalDescription);
                     })
                     .catch((err) => {
                         Logger.Error(`createAnswer() failed - ${err}`);
@@ -167,6 +167,7 @@ export class PeerConnectionController {
      */
     receiveAnswer(answer: RTCSessionDescriptionInit) {
         this.peerConnection?.setRemoteDescription(answer);
+        this.handleOnSetRemoteDescription(answer);
 
         // Add our list of preferred codecs, in order of preference
         this.config.setOptionSettingOptions(
@@ -290,6 +291,11 @@ export class PeerConnectionController {
     handleOnIce(iceCandidate: RTCIceCandidate) {
         Logger.Info('peerconnection handleOnIce');
 
+        // Null candidates signify end of ICE gathering, don't process them
+        if (!iceCandidate || !iceCandidate.candidate) {
+            return;
+        }
+
         // // if forcing TURN, reject any candidates not relay
         if (this.config.isFlagEnabled(Flags.ForceTURN)) {
             // check if no relay address is found, if so, we are assuming it means no TURN server
@@ -301,7 +307,13 @@ export class PeerConnectionController {
             }
         }
 
-        this.peerConnection?.addIceCandidate(iceCandidate);
+        // We need to queue these ICE candidates if we have not yet set our remote description
+        if (!this.hasSetRemoteDescription) {
+            this.queuedRemoteIceCandidates.push(iceCandidate);
+            return;
+        } else {
+            this.peerConnection?.addIceCandidate(iceCandidate);
+        }
     }
 
     /**
@@ -346,15 +358,26 @@ export class PeerConnectionController {
         this.onTrack(event);
     }
 
-    handleOnLocalDescriptionSent() {
-        // Local description has been sent, so we can now send any queued ICE candidates
-        this.hasSentLocalDescription = true;
-        if (this.queuedIceCandidates && this.queuedIceCandidates.length > 0) {
-            for (const iceCandidateEvent of this.queuedIceCandidates) {
-                this.handleIceCandidate(iceCandidateEvent);
+    handleOnSetRemoteDescription(sdp: RTCSessionDescriptionInit) {
+        // Remote description has been set, so we can now call `addIceCandidate` on any queued ICE candidates
+        this.hasSetRemoteDescription = true;
+        if (this.queuedRemoteIceCandidates && this.queuedRemoteIceCandidates.length > 0) {
+            for (const iceCandidate of this.queuedRemoteIceCandidates) {
+                this.handleOnIce(iceCandidate);
             }
-            this.queuedIceCandidates = [];
+            this.queuedRemoteIceCandidates = [];
         }
+
+        // Fire a callback that users of this class can override for doing logic after remote description is set
+        this.onSetRemoteDescription(sdp);
+    }
+
+    handleOnSetLocalDescription(sdp: RTCSessionDescriptionInit) {
+        // Add any custom internal logic we want to do after setting local description here
+        // ...
+
+        // Fire callback that users of this class can override for doing logic after local description is set
+        this.onSetLocalDescription(sdp);
     }
 
     /**
@@ -364,12 +387,7 @@ export class PeerConnectionController {
     handleIceCandidate(event: RTCPeerConnectionIceEvent) {
         // Check if we have sent our local description yet, if not then don't send ICE candidates
         // This prevents us sending ICE candidates before the offer/answer which can cause issues with libWebRTC which requires the remote description first.
-        if (!this.hasSentLocalDescription) {
-            this.queuedIceCandidates.push(event);
-            return;
-        } else {
-            this.onPeerIceCandidate(event);
-        }
+        this.onPeerIceCandidate(event);
     }
 
     /**
@@ -639,7 +657,7 @@ export class PeerConnectionController {
     }
 
     /**
-     * And override event for when the video stats are fired
+     * Callback fired when the video stats are fired
      * @param event - Aggregated Stats
      */
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -648,53 +666,44 @@ export class PeerConnectionController {
     }
 
     /**
-     * And override event for when latency info is calculated
+     * Callback fired when latency info is calculated
      * @param latencyInfo - Calculated latency information.
      */
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     onLatencyCalculated(latencyInfo: LatencyInfo) {
-        // Default Functionality: Do Nothing
+        // Users of this class can override this method to do custom callback logic.
     }
 
     /**
-     * Event to send the RTC offer to the Signaling server
-     * @param offer - RTC Offer
+     * Callback fired when remote description is set.
+     * @param sdp - RTC Session Description
      */
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    onSendWebRTCOffer(offer: RTCSessionDescriptionInit) {
-        // Default Functionality: Do Nothing
+    onSetRemoteDescription(sdp: RTCSessionDescriptionInit) {
+        // Users of this class can override this method to do custom callback logic.
     }
 
     /**
-     * Event fired when remote offer description is set.
-     * @param offer - RTC Offer
+     * Callback fired when local description is set.
+     * @param sdp - RTC Session Description
      */
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    onSetRemoteDescription(offer: RTCSessionDescriptionInit) {
-        // Default Functionality: Do Nothing
+    onSetLocalDescription(sdp: RTCSessionDescriptionInit) {
+        // Users of this class can override this method to do custom callback logic.
     }
 
     /**
-     * Event fire when local description answer is set.
-     * @param answer - RTC Answer
-     */
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    onSetLocalDescription(answer: RTCSessionDescriptionInit) {
-        // Default Functionality: Do Nothing
-    }
-
-    /**
-     * An override for showing the Peer connection connecting Overlay
+     * Callback fired when showing the Peer connection connecting Overlay
      */
     showTextOverlayConnecting() {
-        // Default Functionality: Do Nothing
+        // Users of this class can override this method to do custom callback logic.
     }
 
     /**
-     * An override for showing the Peer connection Failed overlay
+     * Callback fired when showing the Peer connection Failed overlay
      */
     showTextOverlaySetupFailure() {
-        // Default Functionality: Do Nothing
+        // Users of this class can override this method to do custom callback logic.
     }
 
     parseAvailableCodecs(rtcSessionDescription: RTCSessionDescriptionInit): Array<string> {

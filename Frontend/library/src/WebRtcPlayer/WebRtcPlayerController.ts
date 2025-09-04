@@ -1110,19 +1110,32 @@ export class WebRtcPlayerController {
             this.pixelStreaming._onLatencyCalculated(latencyInfo);
         };
 
-        /* When the Peer Connection wants to send an offer have it handled */
-        this.peerConnectionController.onSendWebRTCOffer = (offer: RTCSessionDescriptionInit) => {
-            this.handleSendWebRTCOffer(offer);
+        /* Set event handler for when local description is set */
+        this.peerConnectionController.onSetLocalDescription = (sdp: RTCSessionDescriptionInit) => {
+            if (sdp.type === 'offer') {
+                this.handleSendWebRTCOffer(sdp);
+            } else if (sdp.type === 'answer') {
+                this.handleSendWebRTCAnswer(sdp);
+            } else {
+                Logger.Error(
+                    `PeerConnectionController onSetLocalDescription was called with unexpected type ${sdp.type}`
+                );
+            }
         };
 
-        /* Set event handler for when local answer description is set */
-        this.peerConnectionController.onSetLocalDescription = (answer: RTCSessionDescriptionInit) => {
-            this.handleSendWebRTCAnswer(answer);
-        };
-
-        /* Set event handler for when remote offer description is set */
-        this.peerConnectionController.onSetRemoteDescription = (offer: RTCSessionDescriptionInit) => {
-            this.pixelStreaming._onWebRtcSdpOffer(offer);
+        /* Set event handler for when remote description is set */
+        this.peerConnectionController.onSetRemoteDescription = (sdp: RTCSessionDescriptionInit) => {
+            // Note we only fire events for offer/answer here.
+            // There is no need to send the remote description to the SS (as it has already been sent to us!)
+            if (sdp.type === 'offer') {
+                this.pixelStreaming._onWebRtcSdpOffer(sdp);
+            } else if (sdp.type === 'answer') {
+                this.pixelStreaming._onWebRtcSdpAnswer(sdp);
+            } else {
+                Logger.Error(
+                    `PeerConnectionController onSetRemoteDescription was called with unexpected type ${sdp.type}`
+                );
+            }
         };
 
         /* When the Peer Connection ice candidate is added have it handled */
@@ -1508,6 +1521,11 @@ export class WebRtcPlayerController {
      * @param offer - RTC Session Description
      */
     handleSendWebRTCOffer(offer: RTCSessionDescriptionInit) {
+        if (offer.type !== 'offer') {
+            Logger.Error(`handleSendWebRTCOffer was called with type ${offer.type}`);
+            return;
+        }
+
         Logger.Info('Sending the offer to the Server');
 
         const extraParams = {
@@ -1517,6 +1535,9 @@ export class WebRtcPlayerController {
         };
 
         this.protocol.sendMessage(MessageHelpers.createMessage(Messages.offer, extraParams));
+
+        // Send offer back to Pixel Streaming main class for event dispatch
+        this.pixelStreaming._onWebRtcSdpOffer(offer);
     }
 
     /**
@@ -1524,6 +1545,11 @@ export class WebRtcPlayerController {
      * @param answer - RTC Session Description
      */
     handleSendWebRTCAnswer(answer: RTCSessionDescriptionInit) {
+        if (answer.type !== 'answer') {
+            Logger.Error(`handleSendWebRTCAnswer was called with type ${answer.type}`);
+            return;
+        }
+
         Logger.Info('Sending the answer to the Server');
 
         const extraParams = {
