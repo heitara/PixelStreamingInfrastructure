@@ -1480,14 +1480,22 @@ export class WebRtcPlayerController {
     }
 
     /**
-     * When an ice Candidate is received from the Signaling server add it to the Peer Connection Client
-     * @param iceCandidate - Ice Candidate from Server
+     * Handler for when a remote ICE candidate is received.
+     * @param iceCandidateInit - Initialization data used to make the actual ICE Candidate.
      */
-    handleIceCandidate(iceCandidate: RTCIceCandidateInit) {
-        Logger.Info('Web RTC Controller: onWebRtcIce');
+    handleIceCandidate(iceCandidateInit: RTCIceCandidateInit) {
+        Logger.Info(`Remote ICE candidate information received: ${JSON.stringify(iceCandidateInit)}`);
 
-        const candidate = new RTCIceCandidate(iceCandidate);
-        this.peerConnectionController.handleOnIce(candidate);
+        // We are using "bundle" policy for media lines so we remove the sdpMid and sdpMLineIndex attributes
+        // as these are legacy attributes for when bundle is not used.
+        // If we don't do this the browser may be unable to form a media connection
+        // because some browsers are brittle if the bundle master (e.g. mid=0) doesn't get a candidate first.
+        const remoteIceCandidate = new RTCIceCandidate({
+            candidate: iceCandidateInit.candidate,
+            sdpMid: ''
+        });
+
+        this.peerConnectionController.handleOnIce(remoteIceCandidate);
     }
 
     /**

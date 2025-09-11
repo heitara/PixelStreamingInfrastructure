@@ -23,12 +23,16 @@ export class PeerConnectionController {
     videoTrack: MediaStreamTrack;
     audioTrack: MediaStreamTrack;
     latencyCalculator: LatencyCalculator;
-    hasSetRemoteDescription: boolean;
-    // We may receive ICE candidates before we have set our remote description,
-    // we cannot `addIceCandidate` these without the ice-ufrag/ice-pwd from the remote description
+    // We may receive remote ICE candidates before we have set our remote description,
+    // we cannot `addIceCandidate` on these without the ice-ufrag/ice-pwd from the remote description
     // so we need to queue them until we have set the remote description.
-    // Note: This queuing is not required for local candidates as they are guaranteed to created AFTER setting local description.
     queuedRemoteIceCandidates: RTCIceCandidate[];
+
+    // We want to queue local candidates before sending them as we are using a non-zero `iceCandidatePoolSize`
+    // to gather some candidates earlier. We cannot send these early candidates until we have sent the local description
+    // which contains the ufrag/pwd, without these the other side will not know how to talk to these candidates.
+    // Note: We set this queue to `null` to indicate we are no longer queuing (local description is set) and can send candidates immediately.
+    queuedLocalIceCandidates: RTCPeerConnectionIceEvent[] | null;
 
     /**
      * Create a new RTC Peer Connection client
@@ -48,6 +52,10 @@ export class PeerConnectionController {
             Logger.Info('Forcing TURN usage by setting ICE Transport Policy in peer connection config.');
         }
 
+        // Set pool size to 10 to do some pre-gathering of local ICE candidates
+        // See: `queuedLocalIceCandidates` in this class for details.
+        options.iceCandidatePoolSize = 10;
+
         // build a new peer connection with the options
         this.peerConnection = new RTCPeerConnection(options);
         this.peerConnection.onsignalingstatechange = (ev: Event) => this.handleSignalStateChange(ev);
@@ -60,8 +68,8 @@ export class PeerConnectionController {
         this.aggregatedStats = new AggregatedStats();
         this.preferredCodec = preferredCodec;
         this.updateCodecSelection = true;
-        this.hasSetRemoteDescription = false;
         this.queuedRemoteIceCandidates = [];
+        this.queuedLocalIceCandidates = [];
     }
 
     /**
@@ -308,7 +316,8 @@ export class PeerConnectionController {
         }
 
         // We need to queue these ICE candidates if we have not yet set our remote description
-        if (!this.hasSetRemoteDescription) {
+        const hasSetRemoteDescription = this.peerConnection?.remoteDescription != null;
+        if (!hasSetRemoteDescription) {
             this.queuedRemoteIceCandidates.push(iceCandidate);
             return;
         } else {
@@ -359,25 +368,36 @@ export class PeerConnectionController {
     }
 
     handleOnSetRemoteDescription(sdp: RTCSessionDescriptionInit) {
+        if (this.peerConnection?.remoteDescription == null) {
+            Logger.Error('Error: Remote Description should not be null in handleOnSetRemoteDescription');
+            return;
+        }
+
+        // Fire a callback that users of this class can override for doing logic after remote description is set
+        this.onSetRemoteDescription(sdp);
+
         // Remote description has been set, so we can now call `addIceCandidate` on any queued ICE candidates
-        this.hasSetRemoteDescription = true;
         if (this.queuedRemoteIceCandidates && this.queuedRemoteIceCandidates.length > 0) {
             for (const iceCandidate of this.queuedRemoteIceCandidates) {
                 this.handleOnIce(iceCandidate);
             }
             this.queuedRemoteIceCandidates = [];
         }
-
-        // Fire a callback that users of this class can override for doing logic after remote description is set
-        this.onSetRemoteDescription(sdp);
     }
 
     handleOnSetLocalDescription(sdp: RTCSessionDescriptionInit) {
-        // Add any custom internal logic we want to do after setting local description here
-        // ...
-
         // Fire callback that users of this class can override for doing logic after local description is set
         this.onSetLocalDescription(sdp);
+
+        const localCandidatesToSend = this.queuedLocalIceCandidates;
+        // Set the queue to null to indicate we are no longer queuing and can send candidates immediately.
+        this.queuedLocalIceCandidates = null;
+
+        if (localCandidatesToSend !== null && localCandidatesToSend.length > 0) {
+            for (const localIceCandidate of localCandidatesToSend) {
+                this.handleIceCandidate(localIceCandidate);
+            }
+        }
     }
 
     /**
@@ -385,9 +405,21 @@ export class PeerConnectionController {
      * @param event - The event that is fired when a local peer ice candidate is generated (or generation is complete)
      */
     handleIceCandidate(event: RTCPeerConnectionIceEvent) {
-        // Check if we have sent our local description yet, if not then don't send ICE candidates
-        // This prevents us sending ICE candidates before the offer/answer which can cause issues with libWebRTC which requires the remote description first.
-        this.onPeerIceCandidate(event);
+        // Check if we have sent our local description yet and waited, if not then queue ICE candidates for later sending
+        if (this.peerConnection?.localDescription == null || this.queuedLocalIceCandidates !== null) {
+            this.queuedLocalIceCandidates.push(event);
+            // Sort the candidates to send srflx, relay, then host
+            this.queuedLocalIceCandidates.sort((a, b) => {
+                const aType = a.candidate.type;
+                const bType = b.candidate.type;
+                if (aType === 'srflx' && bType !== 'srflx') return -1;
+                if (aType === 'relay' && bType === 'host') return -1;
+                if (aType === 'host' && bType === 'relay') return 1;
+                return 0;
+            });
+        } else {
+            this.onPeerIceCandidate(event);
+        }
     }
 
     /**
