@@ -8,6 +8,7 @@ call :Init
 call :ParseArgs %*
 
 IF errorlevel 1 (
+	echo Error parsing arguments
 	exit /b 1
 )
 
