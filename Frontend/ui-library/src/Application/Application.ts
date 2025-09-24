@@ -130,7 +130,7 @@ export class Application {
 
         if (isPanelEnabled(options.statsPanelConfig)) {
             // Add stats panel
-            this.statsPanel = new StatsPanel(options.statsPanelConfig, this.stream.config);
+            this.statsPanel = new StatsPanel(options.statsPanelConfig);
             this.uiFeaturesElement.appendChild(this.statsPanel.rootElement);
         }
 

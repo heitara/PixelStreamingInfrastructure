@@ -33,7 +33,6 @@ export class StatsSections {
     static LatencyStats = 'Latency Stats' as const;
     static LatencyTest = 'Latency Test' as const;
     static DataChannelLatencyTest = 'Data Channel Latency Test' as const;
-    static SessionTest = 'Session Test' as const;
 }
 
 export type StatsSectionsKeys = Exclude<keyof typeof StatsSections, 'prototype'>;

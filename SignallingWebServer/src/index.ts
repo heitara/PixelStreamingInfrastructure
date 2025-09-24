@@ -147,25 +147,6 @@ program
             .argParser(JSON.parse)
             .default(config_file.peer_options || '')
     )
-    .addOption(
-        new Option(
-            '--peer_options_file <filename>',
-            'Additional JSON data to send in peerConnectionOptions of the config message. This allows you to provide JSON data without having to deal with it on the command line.'
-        ).default(config_file.peer_options_file || '')
-    )
-    .option(
-        '--reverse-proxy',
-        'Enables reverse proxy mode. This will trust the X-Forwarded-For header.',
-        config_file.reverse_proxy || false
-    )
-    .addOption(
-        new Option(
-            '--reverse-proxy-num-proxies <number>',
-            'Sets the number of proxies to trust. This is used to calculate the real client IP address.'
-        )
-            .implies({ reverse_proxy: true })
-            .default(config_file.reverse_proxy_num_proxies || 1)
-    )
     .option(
         '--log_config',
         'Will print the program configuration on startup.',
@@ -206,33 +187,16 @@ InitLogging({
     logLevelFile: options.log_level_file
 });
 
-// read the peer_options_file
-if (options.peer_options_file) {
-    if (!fs.existsSync(options.peer_options_file)) {
-        Logger.error(`peer_options_file "${options.peer_options_file}" does not exist.`);
-        throw Error(`Failed to find a peer options config file a file called ${options.peer_options_file}.`);
-    }
-
-    options.peer_options = JSON.parse(fs.readFileSync(options.peer_options_file, 'utf-8'));
-} else if (options.peer_options) {
-    Logger.warn(
-        `The --peer_options cli flag has many issues with passing JSON data on the command line. It is recommended that you use --peer_options_file instead.`
-    );
-}
-
 // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
 Logger.info(`${pjson.name} v${pjson.version} starting...`);
 if (options.log_config) {
     Logger.info('Config:');
     for (const key in options) {
-        Logger.info(`"${key}": ${JSON.stringify(options[key])}`);
+        Logger.info(`"${key}": "${options[key]}"`);
     }
 }
 
 const app = express();
-if (options.reverse_proxy) {
-    app.set('trust proxy', options.reverse_proxy_num_proxies);
-}
 
 const serverOpts: IServerConfig = {
     streamerPort: options.streamer_port,

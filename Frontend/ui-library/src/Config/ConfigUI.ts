@@ -141,8 +141,6 @@ export class ConfigUI {
                     psSettingsSection,
                     this.textParametersUi.get(TextParameters.SignallingServerUrl)
                 );
-            if (isSettingEnabled(settingsConfig, Flags.BrowserSendOffer))
-                this.addSettingFlag(psSettingsSection, this.flagsUi.get(Flags.BrowserSendOffer));
             if (isSettingEnabled(settingsConfig, OptionParameters.StreamerId))
                 this.addSettingOption(
                     psSettingsSection,

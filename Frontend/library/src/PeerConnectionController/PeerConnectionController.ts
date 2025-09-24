@@ -144,7 +144,7 @@ export class PeerConnectionController {
                         return this.peerConnection?.setLocalDescription(Answer);
                     })
                     .then(() => {
-                        this.onSetLocalDescription(this.peerConnection?.localDescription);
+                        this.onSetLocalDescription(this.peerConnection?.currentLocalDescription);
                     })
                     .catch((err) => {
                         Logger.Error(`createAnswer() failed - ${err}`);

@@ -6,16 +6,18 @@ goto :eof
 
 :Init
 set SCRIPT_DIR=%~dp0
+echo SCRIPT_DIR is: %SCRIPT_DIR%
 set /p NODE_VERSION=<"%SCRIPT_DIR%/../../../NODE_VERSION"
 set NPM="%SCRIPT_DIR%/node/npm"
 set TAR="%SystemRoot%\System32\tar.exe"
+set CONTINUE=1
 GOTO :eof
 
 :Usage
 echo.
 echo    Usage:
-echo        start.bat [script options...] -- [server options...]
-echo    Script options:
+echo        %0 [--help] [--publicip ^<IP Address^>] [--turn ^<turn server^>] [--stun ^<stun server^>] [server options...]
+echo    Where:
 echo        --help              Print this message and stop this script.
 echo        --publicip          Define public ip address (using default port) for turn server, syntax: --publicip ; it is used for 
 echo                            Default value: Retrieved from 'curl https://api.ipify.org' or if unsuccessful then set to  127.0.0.1.  It is the IP address of the server and the default IP address of the TURN server
@@ -32,13 +34,14 @@ echo        --rebuild           Force a rebuild of everything
 echo        --build-libraries   Force a rebuild of shared libraries
 echo        --build-wilbur      Force build of wilbur
 echo        --deps              Force reinstall of dependencies
-echo    Everything after -- is passed directly to the signalling server executable.
+echo    Other options: stored and passed to the server.
 IF exist "%SCRIPT_DIR%..\..\dist" (
-    pushd %SCRIPT_DIR%..\..
+    pushd "%SCRIPT_DIR%..\.."
     call %NPM% run start --- --help
     popd
 )
-exit /b 1
+set CONTINUE=0
+exit /b
 
 :ParseArgs
 set BUILD_LIBRARIES=0
@@ -53,85 +56,76 @@ set TURN_PASS=
 set STUN_SERVER=
 set PUBLIC_IP=
 :arg_loop
-IF "%1"=="" GOTO LoopExit
-IF "%1"=="--" GOTO PostArgs
-set HANDLED=0
-IF "%1"=="--help" (
-    CALL :Usage
-    exit /b
-)
-IF "%1"=="--publicip" (
-    set HANDLED=1
-    set PUBLIC_IP=%2
+IF NOT "%1"=="" (
+    set HANDLED=0
+    IF "%1"=="--help" (
+        CALL :Usage
+        exit /b
+    )
+    IF "%1"=="--publicip" (
+        set HANDLED=1
+        set PUBLIC_IP=%2
+        SHIFT
+    )
+    IF "%1"=="--turn" (
+        set HANDLED=1
+        set TURN_SERVER=%2
+        SHIFT
+    )
+    IF "%1"=="--turn-user" (
+        set HANDLED=1
+        set TURN_USER=1
+    )
+    IF "%1"=="--turn-pass" (
+        set HANDLED=1
+        set TURN_PASS=1
+    )
+    if "%1"=="--start-turn" (
+        set HANDLED=1
+        set START_TURN=1
+    )
+    IF "%1"=="--stun" (
+        set HANDLED=1
+        set STUN_SERVER=%2
+        SHIFT
+    )
+    IF "%1"=="--frontend-dir" (
+        set HANDLED=1
+        set FRONTEND_DIR=%~2
+        SHIFT
+    )
+    IF "%1"=="--build" (
+        set HANDLED=1
+        set BUILD_FRONTEND=1
+    )
+    IF "%1"=="--rebuild" (
+        set HANDLED=1
+        set BUILD_LIBRARIES=1
+        set BUILD_FRONTEND=1
+        set BUILD_WILBUR=1
+    )
+    IF "%1"=="--build-libraries" (
+        set HANDLED=1
+        set BUILD_LIBRARIES=1
+    )
+    IF "%1"=="--build-wilbur" (
+        set HANDLED=1
+        set BUILD_WILBUR=1
+    )
+    IF "%1"=="--deps" (
+        set HANDLED=1
+        set INSTALL_DEPS=1
+    )
+    IF NOT "!HANDLED!"=="1" (
+        set SERVER_ARGS=%SERVER_ARGS% %1
+    )
     SHIFT
+    GOTO :arg_loop
 )
-IF "%1"=="--turn" (
-    set HANDLED=1
-    set TURN_SERVER=%2
-    SHIFT
-)
-IF "%1"=="--turn-user" (
-    set HANDLED=1
-    set TURN_USER=1
-)
-IF "%1"=="--turn-pass" (
-    set HANDLED=1
-    set TURN_PASS=1
-)
-if "%1"=="--start-turn" (
-    set HANDLED=1
-    set START_TURN=1
-)
-IF "%1"=="--stun" (
-    set HANDLED=1
-    set STUN_SERVER=%2
-    SHIFT
-)
-IF "%1"=="--frontend-dir" (
-    set HANDLED=1
-    set FRONTEND_DIR=%~2
-    SHIFT
-)
-IF "%1"=="--build" (
-    set HANDLED=1
-    set BUILD_FRONTEND=1
-)
-IF "%1"=="--rebuild" (
-    set HANDLED=1
-    set BUILD_LIBRARIES=1
-    set BUILD_FRONTEND=1
-    set BUILD_WILBUR=1
-)
-IF "%1"=="--build-libraries" (
-    set HANDLED=1
-    set BUILD_LIBRARIES=1
-)
-IF "%1"=="--build-wilbur" (
-    set HANDLED=1
-    set BUILD_WILBUR=1
-)
-IF "%1"=="--deps" (
-    set HANDLED=1
-    set INSTALL_DEPS=1
-)
-IF NOT "!HANDLED!"=="1" (
-    echo Unknown arg %1
-    exit /b 1
-)
-SHIFT
-GOTO :arg_loop
-
-:PostArgs
-SHIFT
-IF "%1"=="" GOTO LoopExit
-set SERVER_ARGS=%SERVER_ARGS% %1
-GOTO PostArgs
-
-:LoopExit
 exit /b
 
 :SetupNode
-pushd %SCRIPT_DIR%
+pushd "%SCRIPT_DIR%"
 SET NODE_NAME=node-%NODE_VERSION%-win-x64
 if exist node\ (
   echo Node directory found...skipping install.
@@ -159,7 +153,7 @@ popd
 
 if "%INSTALL_DEPS%"=="1" (
     echo Installing dependencies...
-    pushd %SCRIPT_DIR%..\..\..
+    pushd "%SCRIPT_DIR%"..\..\..
     call %NPM% install
     popd
 )
@@ -182,14 +176,14 @@ if NOT exist "%SCRIPT_DIR%..\..\..\Signalling\dist" (
 )
 
 IF "%BUILD_COMMON%"=="1" (
-    pushd %SCRIPT_DIR%..\..\..\Common
+    pushd "%SCRIPT_DIR%"..\..\..\Common
     echo Building common library
     call %NPM% run build:cjs
     popd
 )
 
 IF "%BUILD_SIGNALLING%"=="1" (
-    pushd %SCRIPT_DIR%..\..\..\Signalling
+    pushd "%SCRIPT_DIR%"..\..\..\Signalling
     echo Building signalling library
     call %NPM% run build:cjs
     popd
@@ -199,7 +193,7 @@ exit /b
 
 :SetupFrontend
 rem Start in the repo dir
-pushd %SCRIPT_DIR%..\..\..\
+pushd "%SCRIPT_DIR%"..\..\..\
 
 IF "%FRONTEND_DIR%"=="" (
     set FRONTEND_DIR="%SCRIPT_DIR%..\..\www"
@@ -223,17 +217,13 @@ IF "%BUILD_FRONTEND%"=="1" (
     rem We could replace this all with a single npm script that does all this. we do have several build-all scripts already
     rem but this does give a good reference about the dependency chain for all of this.
     echo Building Typescript frontend...
-    pushd %CD%\Common
-    call %NPM% run build:esm
+    pushd "%CD%\Frontend\library"
+    call %NPM% run build:cjs
     popd
-    pushd %CD%\Frontend\library
-    call %NPM% run build:esm
+    pushd "%CD%\Frontend\ui-library"
+    call %NPM% run build:cjs
     popd
-    pushd %CD%\Frontend\ui-library
-    call %NPM% run build:esm
-    popd
-    pushd %CD%\Frontend\implementations\typescript
-    rem Note: build:dev implicitly uses esm deps due to node16/bundler module resolution
+    pushd "%CD%\Frontend\implementations\typescript"
     call %NPM% run build:dev
     popd
     popd
@@ -245,7 +235,7 @@ exit /b
 
 :SetupCoturn
 @Rem Look for CoTURN directory next to this script
-pushd %SCRIPT_DIR%
+pushd "%SCRIPT_DIR%"
 if exist coturn\ (
   echo CoTURN directory found...skipping install.
 ) else (
@@ -301,7 +291,7 @@ if "%START_TURN%"=="1" (
     IF NOT "%TURN_SERVER%"=="" (
         IF NOT "%TURN_USER%"=="" (
             IF NOT "%TURN_PASS%"=="" (
-                pushd %SCRIPT_DIR%coturn\
+                pushd "%SCRIPT_DIR%"coturn\
                 IF "%1"=="bg" (
                     start "%TURN_PROCESS%" %TURN_PROCESS% %TURN_ARGS%
                 ) else (
@@ -330,7 +320,7 @@ IF NOT exist "%SCRIPT_DIR%..\..\dist" (
 )
 
 IF "%BUILD_WILBUR%"=="1" (
-    pushd %SCRIPT_DIR%\..\..\
+    pushd "%SCRIPT_DIR%..\.."..\
     echo Building wilbur...
     call %NPM% run build
     popd
@@ -338,10 +328,12 @@ IF "%BUILD_WILBUR%"=="1" (
 exit /b
 
 :StartWilbur
-pushd %SCRIPT_DIR%\..\..\
+pushd "%SCRIPT_DIR%..\.."..\
 call %NPM% run start -- %SERVER_ARGS%
 exit /b
 
 :NormalizePath
 set RETVAL=%~f1
 exit /b
+
+

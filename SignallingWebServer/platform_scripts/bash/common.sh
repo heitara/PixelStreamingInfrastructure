@@ -6,8 +6,8 @@ NODE_VERSION=$(<"${SCRIPT_DIR}/../../../NODE_VERSION")
 function print_usage() {
     echo "
     Script usage:
-        start.sh [script options...] -- [server options...]
-    Script options:
+        ${0} [--help] [--publicip <IP Address>] [--turn <turn server>] [--stun <stun server>] [server options...]
+    Where:
         --help              Print this message and stop this script.
         --debug             Run all scripts with --inspect
         --nosudo            Run all scripts without \`sudo\` command useful for when run in containers.
@@ -28,7 +28,7 @@ function print_usage() {
         --build-wilbur      Force build of wilbur
         --deps              Force reinstall of dependencies
 
-    Anything after -- is passed directly to the signalling server.
+    Other options: stored and passed to the server.  All parameters printed once the script values are set.
     Command line options might be omitted to run with defaults and it is a good practice to omit specific ones when just starting the TURN or the STUN server alone, not the whole set of scripts.
     "
     if [[ -d "${SCRIPT_DIR}/../../dist/" ]]; then
@@ -66,16 +66,11 @@ function parse_args() {
         --build-libraries ) BUILD_LIBRARIES=1; shift;;
         --deps ) INSTALL_DEPS=1; shift;;
         --help ) print_usage;;
-        -- ) shift; break;;
-        * )
-            echo "Unknown argument: $1"
-            exit 1
-            ;;
+        * ) SERVER_ARGS+=" $1"; shift;;
         esac
     done
-    SERVER_ARGS+=$@
-    if [[ ! -z "$@" ]]; then
-        echo "Parameters being passed to server: $@"
+    if [[ ! -z "${SERVER_ARGS}" ]]; then
+        echo "Parameters being passed to server: ${SERVER_ARGS}"
     fi
 }
 
@@ -229,14 +224,11 @@ function setup_frontend() {
 	if [ ! -d "${WEBPACK_OUTPUT_PATH}" ] || [ "$BUILD_FRONTEND" == "1" ] ; then
 		echo "Building Typescript Frontend."
 		# Using our bundled NodeJS, build the web frontend files
-        pushd "${SCRIPT_DIR}/../../../Common" > /dev/null
-		npm run build:esm
-		popd > /dev/null
 		pushd "${SCRIPT_DIR}/../../../Frontend/library" > /dev/null
-		npm run build:esm
+		npm run build:cjs
 		popd > /dev/null
 		pushd "${SCRIPT_DIR}/../../../Frontend/ui-library" > /dev/null
-		npm run build:esm
+		npm run build:cjs
 		popd > /dev/null
 		pushd "${SCRIPT_DIR}/../../../Frontend/implementations/typescript" > /dev/null
 		npm run build:dev

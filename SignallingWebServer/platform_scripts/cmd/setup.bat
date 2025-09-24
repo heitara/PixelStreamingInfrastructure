@@ -18,4 +18,6 @@ goto :eof
 :SetupTurnStun
 :PrintConfig
 :StartWilbur
-"%~dp0common.bat" %*
+echo The value of %%~dp0 is: %~dp0
+set SETUP_SCRIPT_DIR=%~dp0
+"%SETUP_SCRIPT_DIR%common.bat" %*
