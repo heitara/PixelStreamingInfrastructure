@@ -24,6 +24,7 @@ import { InfoOverlay } from '../Overlay/InfoOverlay';
 import { ErrorOverlay } from '../Overlay/ErrorOverlay';
 import { AFKOverlay } from '../Overlay/AFKOverlay';
 import { Controls, ControlsUIConfiguration } from '../UI/Controls';
+import { GameOverlay } from '../UI/GameOverlay';
 import { LabelledButton } from '../UI/LabelledButton';
 import { SettingsPanel } from '../UI/SettingsPanel';
 import { StatsPanel } from '../UI/StatsPanel';
@@ -225,44 +226,47 @@ export class Application {
         };
 
         // Setup controls
-        const controls = new Controls(controlsUIConfig);
-        this.uiFeaturesElement.appendChild(controls.rootElement);
+        // const controls = new Controls(controlsUIConfig);
+        // this.uiFeaturesElement.appendChild(controls.rootElement);
+
+        // const gameOverlay = new GameOverlay(controlsUIConfig);
+        // this.uiFeaturesElement.appendChild(gameOverlay.rootElement);
 
         // When we fullscreen we want this element to be the root
-        const fullScreenButton: FullScreenIconBase | undefined =
-            // Depending on if we're creating an internal button, or using an external one
-            !!this._options.fullScreenControlsConfig &&
-            this._options.fullScreenControlsConfig.creationMode === UIElementCreationMode.UseCustomElement
-                ? // Either create a fullscreen class based on the external button
-                  new FullScreenIconExternal(this._options.fullScreenControlsConfig.customElement)
-                : // Or use the one created by the Controls initializer earlier
-                  controls.fullscreenIcon;
-        if (fullScreenButton) {
-            fullScreenButton.fullscreenElement = /iPad|iPhone|iPod/.test(navigator.userAgent)
-                ? this.stream.videoElementParent.getElementsByTagName('video')[0]
-                : this.rootElement;
-        }
+        // const fullScreenButton: FullScreenIconBase | undefined =
+        //     // Depending on if we're creating an internal button, or using an external one
+        //     !!this._options.fullScreenControlsConfig &&
+        //     this._options.fullScreenControlsConfig.creationMode === UIElementCreationMode.UseCustomElement
+        //         ? // Either create a fullscreen class based on the external button
+        //           new FullScreenIconExternal(this._options.fullScreenControlsConfig.customElement)
+        //         : // Or use the one created by the Controls initializer earlier
+        //           controls.fullscreenIcon;
+        // if (fullScreenButton) {
+        //     fullScreenButton.fullscreenElement = /iPad|iPhone|iPod/.test(navigator.userAgent)
+        //         ? this.stream.videoElementParent.getElementsByTagName('video')[0]
+        //         : this.rootElement;
+        // }
 
         // Add settings button to controls
-        const settingsButton: HTMLElement | undefined = controls.settingsIcon
-            ? controls.settingsIcon.rootElement
-            : this._options.settingsPanelConfig.visibilityButtonConfig.customElement;
-        if (settingsButton) settingsButton.onclick = () => this.settingsClicked();
-        if (this.settingsPanel) this.settingsPanel.settingsCloseButton.onclick = () => this.settingsClicked();
+        // const settingsButton: HTMLElement | undefined = gameOverlay.settingsIcon
+        //     ? gameOverlay.settingsIcon.rootElement
+        //     : this._options.settingsPanelConfig.visibilityButtonConfig.customElement;
+        // if (settingsButton) settingsButton.onclick = () => this.settingsClicked();
+        // if (this.settingsPanel) this.settingsPanel.settingsCloseButton.onclick = () => this.settingsClicked();
 
-        // Add WebXR button to controls
-        const xrButton: HTMLElement | undefined = controls.xrIcon
-            ? controls.xrIcon.rootElement
-            : this._options.xrControlsConfig.creationMode === UIElementCreationMode.UseCustomElement
-              ? this._options.xrControlsConfig.customElement
-              : undefined;
-        if (xrButton) xrButton.onclick = () => this.stream.toggleXR();
+        // // Add WebXR button to controls
+        // const xrButton: HTMLElement | undefined = controls.xrIcon
+        //     ? controls.xrIcon.rootElement
+        //     : this._options.xrControlsConfig.creationMode === UIElementCreationMode.UseCustomElement
+        //       ? this._options.xrControlsConfig.customElement
+        //       : undefined;
+        // if (xrButton) xrButton.onclick = () => this.stream.toggleXR();
 
-        // setup the stats/info button
-        const statsButton: HTMLElement | undefined = controls.statsIcon
-            ? controls.statsIcon.rootElement
-            : this._options.statsPanelConfig.visibilityButtonConfig.customElement;
-        if (statsButton) statsButton.onclick = () => this.statsClicked();
+        // // setup the stats/info button
+        // const statsButton: HTMLElement | undefined = controls.statsIcon
+        //     ? controls.statsIcon.rootElement
+        //     : this._options.statsPanelConfig.visibilityButtonConfig.customElement;
+        // if (statsButton) statsButton.onclick = () => this.statsClicked();
 
         if (this.statsPanel) {
             this.statsPanel.statsCloseButton.onclick = () => this.statsClicked();

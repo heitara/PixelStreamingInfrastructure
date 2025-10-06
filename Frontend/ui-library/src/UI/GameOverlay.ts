@@ -5,31 +5,14 @@ import { SettingsIcon } from './SettingsIcon';
 import { StatsIcon } from './StatsIcon';
 import { XRIcon } from './XRIcon';
 import { WebXRController } from '@epicgames-ps/lib-pixelstreamingfrontend-ue5.6';
-import { UIElementConfig, UIElementCreationMode } from '../UI/UIConfigurationTypes';
+import { UIElementConfig, UIElementCreationMode } from './UIConfigurationTypes';
+import { ControlsUIConfiguration, shouldCreateButton } from './Controls';
 
-/**
- * Configures how UI elements to control the stream are created.
- * By default, a button will be created for each control. That can be overriden per-control
- * to use an externally provided element, or to disable the element entirely.
- */
-export type ControlsUIConfiguration = {
-    //[Property in keyof Controls as `${Property}Type`]? : UIElementType;
-    statsButtonType?: UIElementConfig;
-    fullscreenButtonType?: UIElementConfig;
-    settingsButtonType?: UIElementConfig;
-    xrIconType?: UIElementConfig;
-    hideControlsInFullscreen?: boolean;
-};
-
-// If there isn't a type provided, default behaviour is to create the element.
-export function shouldCreateButton(type: UIElementConfig | undefined): boolean {
-    return type == undefined ? true : type.creationMode === UIElementCreationMode.CreateDefaultElement;
-}
 
 /**
  * Element containing various controls like stats, settings, fullscreen.
  */
-export class Controls {
+export class GameOverlay {
     statsIcon: StatsIcon;
     fullscreenIcon: FullScreenIcon;
     settingsIcon: SettingsIcon;
