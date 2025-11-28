@@ -136,9 +136,10 @@ program
     )
     .option(
         '--rest_api',
-        'Enables the rest API interface that can be accessed at <server_url>/api/api-definition',
+        'Enables the rest API interface that can be accessed at <server_url>/api/v1/api-definition',
         config_file.rest_api || false
     )
+    .option('--brain_api_key <key>', 'Sets the API key for the brain API.', config_file.brain_api_key || '')
     .addOption(
         new Option(
             '--peer_options <json-string>',
@@ -283,6 +284,18 @@ if (options.rest_api) {
         paths: './dist/paths',
         dependencies: {
             signallingServer
+        },
+        securityHandlers: {
+            ApiKeyAuth: (req: { headers?: Record<string, string> }, _scopes: any, _definition: any) => {
+                if (
+                    options.brain_api_key &&
+                    req.headers &&
+                    req.headers['x-api-key'] !== options.brain_api_key
+                ) {
+                    return Promise.reject(new Error('Invalid API key'));
+                }
+                return Promise.resolve(true);
+            }
         }
     });
 }
