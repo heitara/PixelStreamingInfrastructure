@@ -286,7 +286,7 @@ if (options.rest_api) {
             signallingServer
         },
         securityHandlers: {
-            ApiKeyAuth: (req: { headers?: Record<string, string> }, _scopes: any, _definition: any) => {
+            ApiKeyAuth: (req: { headers?: Record<string, any> }, _scopes: any, _definition: any) => {
                 if (
                     options.brain_api_key &&
                     req.headers &&
