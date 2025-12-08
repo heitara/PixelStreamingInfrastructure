@@ -1,4 +1,3 @@
-
 :root {
 	--democolor0: rgba(15, 15, 15, 1);
 	--democolor1: #000000;
@@ -63,6 +62,7 @@ code {
     display: flex;
     align-items: initial;
     justify-content: center;
+    position: relative;
 }
 
 #exampletitle {
@@ -200,4 +200,46 @@ a[data-toggle="collapse"] {
 
 .characterBtn:active {
 	box-shadow: var(--democolor5) 0px 0px 0px 3px;
+}
+
+/* Game Controls Floating Panel */
+#gamecontrol {
+    position: absolute;
+    z-index: 100;
+    background-color: rgba(26, 26, 26, 0.8); /* Matches --democolor4 with opacity */
+    padding: 15px;
+    border-radius: 8px;
+    color: var(--democolor2);
+    border: 1px solid var(--democolor3);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(5px);
+}
+
+/* Phone Layout */
+@media (max-width: 600px) {
+    #gamecontrol {
+        width: 80%;
+        font-size: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+}
+
+/* Tablet Layout */
+@media (min-width: 601px) and (max-width: 1024px) {
+    #gamecontrol {
+        min-width: 300px;
+        max-width: 50%;
+        font-size: 15px;
+    }
+}
+
+/* Desktop Layout */
+@media (min-width: 1025px) {
+    #gamecontrol {
+        min-width: 250px;
+        max-width: 400px;
+        font-size: 16px;
+    }
 }

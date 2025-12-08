@@ -2,6 +2,9 @@
 
 import { Config, PixelStreaming } from '@epicgames-ps/lib-pixelstreamingfrontend-ue5.7';
 import { Application, PixelStreamingApplicationStyle } from '@epicgames-ps/lib-pixelstreamingfrontend-ui-ue5.7';
+import { GameControls } from './GameControls';
+import { DefaultGameControlsConfig } from './game-config';
+
 export const PixelStreamingApplicationStyles = new PixelStreamingApplicationStyle();
 PixelStreamingApplicationStyles.applyStyleSheet();
 
@@ -17,6 +20,9 @@ document.body.onload = function() {
 		onColorModeChanged: (isLightMode) => PixelStreamingApplicationStyles.setColorMode(isLightMode)
 	});
 	document.getElementById("playercontainer").appendChild(application.rootElement);
+
+    // Initialize Game Controls
+    new GameControls(DefaultGameControlsConfig);
 
 	const game = new Game(stream);
 
