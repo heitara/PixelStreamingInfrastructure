@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 import { Config, PixelStreaming } from '@epicgames-ps/lib-pixelstreamingfrontend-ue5.7';
-import { Application, PixelStreamingApplicationStyle } from '@epicgames-ps/lib-pixelstreamingfrontend-ui-ue5.7';
+import { Application, PixelStreamingApplicationStyle, UIElementCreationMode } from '@epicgames-ps/lib-pixelstreamingfrontend-ui-ue5.7';
 import { GameControls } from './GameControls';
 import { DefaultGameControlsConfig } from './game-config';
 
@@ -17,7 +17,12 @@ document.body.onload = function() {
 	const stream = new PixelStreaming(config);
 	const application = new Application({
 		stream,
-		onColorModeChanged: (isLightMode) => PixelStreamingApplicationStyles.setColorMode(isLightMode)
+		onColorModeChanged: (isLightMode) => PixelStreamingApplicationStyles.setColorMode(isLightMode),
+		statsPanelConfig: {isEnabled: false, visibilityButtonConfig: { creationMode: UIElementCreationMode.Disable}},
+		settingsPanelConfig: {isEnabled: false, visibilityButtonConfig: { creationMode: UIElementCreationMode.Disable}},
+		xrControlsConfig: undefined,
+		videoQpIndicatorConfig: undefined,
+		hideControlsInFullscreen: true
 	});
 	document.getElementById("playercontainer").appendChild(application.rootElement);
 
