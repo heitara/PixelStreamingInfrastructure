@@ -4,6 +4,7 @@ import { Config, PixelStreaming } from '@epicgames-ps/lib-pixelstreamingfrontend
 import { Application, PixelStreamingApplicationStyle, UIElementCreationMode } from '@epicgames-ps/lib-pixelstreamingfrontend-ui-ue5.7';
 import { GameControls } from './GameControls';
 import { DefaultGameControlsConfig } from './game-config';
+import { ServerListener } from "./ServerListener";
 
 export const PixelStreamingApplicationStyles = new PixelStreamingApplicationStyle();
 PixelStreamingApplicationStyles.applyStyleSheet();
@@ -33,6 +34,22 @@ document.body.onload = function() {
 
 	// Bind example selection to the onExampleChanged function
 	document.getElementById("exampleSelect").onchange = (event : Event) => { game.onExampleChanged(event); };
+
+
+	const listener = new ServerListener("http://localhost:8081");
+
+	listener.onSync = (data) => {
+		console.log(`Sync: ${data.sessionId}, Step: ${data.currentStep}`);
+		// Update Game object look and feel here
+	};
+
+	listener.onGameEvent = (eventName, data) => {
+		console.log(`Event ${eventName}: ${data.step}`);
+		// Trigger game animations or state changes
+	};
+
+	listener.connect();
+
 }
 
 class Game {

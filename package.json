@@ -41,5 +41,7 @@
             "glob": "7.2.3"
         }
     },
-    "dependencies": {}
+    "dependencies": {
+        "socket.io-client": "^4.8.1"
+    }
 }
