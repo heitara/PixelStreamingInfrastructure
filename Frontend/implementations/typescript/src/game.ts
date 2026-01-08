@@ -5,6 +5,7 @@ import { Application, PixelStreamingApplicationStyle, UIElementCreationMode } fr
 import { GameControls } from './GameControls';
 import { DefaultGameControlsConfig } from './game-config';
 import { BettingInterface } from './BettingInterface';
+import { ServerListener } from './ServerListener';
 
 export const PixelStreamingApplicationStyles = new PixelStreamingApplicationStyle();
 PixelStreamingApplicationStyles.applyStyleSheet();
@@ -32,6 +33,21 @@ document.body.onload = function() {
     const gameControls = new GameControls(DefaultGameControlsConfig);
 
 	game = new Game(stream, gameControls);
+
+	const listener = new ServerListener("http://localhost:8081");
+
+	listener.onSync = (data) => {
+		console.log(`Sync: ${data.sessionId}, Step: ${data.currentStep}`);
+		// Update Game object look and feel here
+	};
+
+	listener.onGameEvent = (eventName, data) => {
+		console.log(`Event ${eventName}: ${data.step}`);
+		// Trigger game animations or state changes
+	};
+
+	listener.connect();
+
 }
 
 class Game {
