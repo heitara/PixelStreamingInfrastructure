@@ -6,6 +6,6 @@ export interface GameControlsConfig {
 }
 
 export const DefaultGameControlsConfig: GameControlsConfig = {
-    top: 10,
+    top: 60,
     left: 10
 };

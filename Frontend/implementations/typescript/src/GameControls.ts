@@ -45,6 +45,15 @@ export class GameControls {
         document.addEventListener('mouseup', this.onMouseUp.bind(this));
     }
 
+    public clearContent() {
+        this.element.innerHTML = '';
+    }
+
+    public addContent(content: HTMLElement) {
+        console.log('Adding content to Game Controls');
+        this.element.appendChild(content);
+    }
+
     private onMouseDown(event: MouseEvent) {
         this.isDragging = true;
         

@@ -1,0 +1,177 @@
+/* Shadcn-like Variables */
+:root {
+  --background: 0 0% 100%;
+  --foreground: 222.2 84% 4.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 222.2 84% 4.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 84% 4.9%;
+  --primary: 222.2 47.4% 11.2%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 40% 96.1%;
+  --secondary-foreground: 222.2 47.4% 11.2%;
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+  --accent: 210 40% 96.1%;
+  --accent-foreground: 222.2 47.4% 11.2%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 222.2 84% 4.9%;
+  --radius: 0.5rem;
+}
+
+.betting-container {
+    font-family: 'Montserrat', sans-serif;
+    padding: 1.5rem;
+    background-color: hsl(var(--background));
+    border-radius: var(--radius);
+    border: 1px solid hsl(var(--border));
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    max-width: 800px;
+    margin: 0 auto;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    
+    /* Ensure it works well in overlay */
+    pointer-events: auto; /* Enable clicks inside */
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+/* Balance Header */
+.balance-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid hsl(var(--border));
+}
+
+.balance-label {
+    font-size: 0.875rem;
+    color: hsl(var(--muted-foreground));
+    font-weight: 500;
+}
+
+.balance-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: hsl(var(--foreground));
+}
+
+/* Grid */
+.ticket-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.ticket-card {
+    background-color: hsl(var(--card));
+    color: hsl(var(--card-foreground));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    height: 100px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.ticket-card:hover {
+    background-color: hsl(var(--accent));
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+}
+
+.ticket-value {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    background-color: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    border-radius: 9999px;
+    padding: 0.25rem 0.6rem;
+    font-size: 0.75rem;
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgb(0 0 0 / 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Chip Row */
+.chip-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid hsl(var(--border));
+}
+
+.chip-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: 2px solid hsl(var(--border));
+    background-color: hsl(var(--background));
+    font-weight: bold;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.chip-btn:hover:not(:disabled) {
+    background-color: hsl(var(--secondary));
+    transform: scale(1.1);
+}
+
+.chip-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: hsl(var(--muted));
+    border-color: hsl(var(--border));
+}
+
+.chip-btn.selected {
+    border-color: hsl(var(--primary));
+    background-color: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--primary));
+}
+
+.action-btn {
+    padding: 0 1.5rem;
+    height: 48px;
+    border-radius: var(--radius);
+    background-color: hsl(var(--secondary));
+    color: hsl(var(--secondary-foreground));
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    margin-left: 1rem;
+}
+
+.action-btn:hover:not(:disabled) {
+    background-color: hsl(var(--muted));
+}
+
+.action-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
