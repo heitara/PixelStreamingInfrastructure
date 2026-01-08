@@ -25,7 +25,8 @@
     },
     "dependencies": {
         "@epicgames-ps/lib-pixelstreamingfrontend-ue5.7": "*",
-        "@epicgames-ps/lib-pixelstreamingfrontend-ui-ue5.7": "*"
+        "@epicgames-ps/lib-pixelstreamingfrontend-ui-ue5.7": "*",
+        "socket.io-client": "^4.8.3"
     },
     "repository": {
         "type": "git",

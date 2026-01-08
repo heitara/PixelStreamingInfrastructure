@@ -7,7 +7,7 @@
 	"sfu_port": "8889",
 	"serve": true,
 	"http_root": "C:\\Users\\heita\\Documents\\Projects\\signaling_server\\PixelStreamingInfrastructure\\SignallingWebServer\\www",
-	"homepage": "player.html",
+	"homepage": "game.html",
 	"https": false,
 	"https_port": 443,
 	"ssl_key_path": "certificates/client-key.pem",

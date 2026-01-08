@@ -10,7 +10,10 @@ import { ServerListener } from './ServerListener';
 export const PixelStreamingApplicationStyles = new PixelStreamingApplicationStyle();
 PixelStreamingApplicationStyles.applyStyleSheet();
 let game: Game = null;
-
+const sockerConfing = {
+	url: "http://localhost:8081",
+	autoConnect: !true
+}
 
 document.body.onload = function() {
 	// Create a config object
@@ -34,7 +37,7 @@ document.body.onload = function() {
 
 	game = new Game(stream, gameControls);
 
-	const listener = new ServerListener("http://localhost:8081");
+	const listener = new ServerListener(sockerConfing.url);
 
 	listener.onSync = (data) => {
 		console.log(`Sync: ${data.sessionId}, Step: ${data.currentStep}`);
@@ -45,8 +48,9 @@ document.body.onload = function() {
 		console.log(`Event ${eventName}: ${data.step}`);
 		// Trigger game animations or state changes
 	};
-
-	listener.connect();
+	if (sockerConfing.autoConnect) {
+		listener.connect();
+	}
 
 }
 
