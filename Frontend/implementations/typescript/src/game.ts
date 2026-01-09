@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-import { Config, PixelStreaming } from '@epicgames-ps/lib-pixelstreamingfrontend-ue5.7';
+import { AllSettings, Config, PixelStreaming } from '@epicgames-ps/lib-pixelstreamingfrontend-ue5.7';
 import { Application, PixelStreamingApplicationStyle, UIElementCreationMode } from '@epicgames-ps/lib-pixelstreamingfrontend-ui-ue5.7';
 import { GameControls } from './GameControls';
 import { DefaultGameControlsConfig } from './game-config';
@@ -10,14 +10,27 @@ import { ServerListener } from './ServerListener';
 export const PixelStreamingApplicationStyles = new PixelStreamingApplicationStyle();
 PixelStreamingApplicationStyles.applyStyleSheet();
 let game: Game = null;
-const sockerConfing = {
+const socketConfig = {
 	url: "http://localhost:8081",
 	autoConnect: !true
 }
 
 document.body.onload = function() {
+	const initialConfig:  Partial<AllSettings> = {} as;
+	//set config parameters here
+	initialConfig.StreamerId = 'SFU';
+	initialConfig.AutoConnect = true;
+	initialConfig.SuppressBrowserKeys = true;
+	initialConfig.WaitForStreamer = true;
+	initialConfig.KeyboardInput = false;
+	initialConfig.MouseInput = false;
+	initialConfig.TouchInput = false;
+	initialConfig.GamepadInput = false;
+	initialConfig.XRControllerInput = false;
 	// Create a config object
-	const config = new Config({ useUrlParams: true });
+	const config = new Config({ useUrlParams: true, initialSettings: initialConfig });
+
+
 
 	// Create Pixel Streaming application
 	const stream = new PixelStreaming(config);
@@ -37,7 +50,7 @@ document.body.onload = function() {
 
 	game = new Game(stream, gameControls);
 
-	const listener = new ServerListener(sockerConfing.url);
+	const listener = new ServerListener(socketConfig.url);
 
 	listener.onSync = (data) => {
 		console.log(`Sync: ${data.sessionId}, Step: ${data.currentStep}`);
@@ -48,7 +61,7 @@ document.body.onload = function() {
 		console.log(`Event ${eventName}: ${data.step}`);
 		// Trigger game animations or state changes
 	};
-	if (sockerConfing.autoConnect) {
+	if (socketConfig.autoConnect) {
 		listener.connect();
 	}
 
