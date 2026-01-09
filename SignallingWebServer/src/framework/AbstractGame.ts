@@ -72,17 +72,22 @@ export abstract class AbstractGame extends EventEmitter {
         }, currentState.duration);
     }
 
-    public handleAction(_clientId: string, _action: any): void {
-        // const currentState = this.getCurrentState();
-        // if (!currentState) {
-        //     return;
-        // }
-        // if (currentState.allowActions) {
-        //     console.log(`[Game ${this.sessionId}] Action received from ${clientId} in state ${currentState.name}:`, action);
-        //     this.emit("playerAction", { clientId, action, state: currentState.name });
-        // } else {
-        //     console.log(`[Game ${this.sessionId}] Action rejected from ${clientId} (Not allowed in ${currentState.name})`);
-        // }
+    public handleAction(clientId: string, action: Record<string, any>): void {
+        const currentState = this.getCurrentState();
+        if (!currentState) {
+            return;
+        }
+        if (currentState.allowActions) {
+            console.log(
+                `[Game ${this.sessionId}] Action received from ${clientId} in state ${currentState.name}:`,
+                action
+            );
+            this.emit('playerAction', { clientId, action, state: currentState.name });
+        } else {
+            console.log(
+                `[Game ${this.sessionId}] Action rejected from ${clientId} (Not allowed in ${currentState.name})`
+            );
+        }
     }
 
     public getCurrentState(): GameState | null {
