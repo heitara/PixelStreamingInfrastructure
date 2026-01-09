@@ -2,10 +2,12 @@ export class BettingInterface {
     
     private rootElement: HTMLElement;
     private balanceElement: HTMLElement;
+    private betButton: HTMLButtonElement;
     private selectedChipValue: number = 1;
     private balance: number = 1000.00;
     private currentBets: Map<string, number> = new Map();
     private lastBets: Map<string, number> = new Map();
+    private onSubmitCallback?: (betData: any) => void;
     
     private chipValues = [0.10, 0.20, 0.50, 1, 5, 25, 100, 500, 2500];
     private ticketTypes = ['1', '2', 'Bonus', 'Pachinko', '5', '10', 'Cash Hunt', 'Crazy Time'];
@@ -97,11 +99,11 @@ export class BettingInterface {
         controls.appendChild(resetBtn);
 
         // Bet Button
-        const betBtn = document.createElement("button");
-        betBtn.className = "action-btn";
-        betBtn.innerText = "Bet";
-        betBtn.onclick = () => this.submitBet();
-        controls.appendChild(betBtn);
+        this.betButton = document.createElement("button");
+        this.betButton.className = "action-btn";
+        this.betButton.innerText = "Bet";
+        this.betButton.onclick = () => this.submitBet();
+        controls.appendChild(this.betButton);
 
         this.rootElement.appendChild(controls);
     }
@@ -202,8 +204,36 @@ export class BettingInterface {
         const betObject = Object.fromEntries(this.currentBets);
         console.log("Bet Submitted:", betObject);
 
+        // Send to server if callback is set
+        if (this.onSubmitCallback) {
+            this.onSubmitCallback(betObject);
+        }
+
         // Save history for Repeat
         this.lastBets = new Map(this.currentBets);
+        this.currentBets.clear();
+    }
+
+    /**
+     * Sets the callback function to be called when a bet is submitted.
+     * @param callback - Function that receives the bet data object.
+     */
+    public setOnSubmit(callback: (betData: any) => void) {
+        this.onSubmitCallback = callback;
+    }
+
+    /**
+     * Enables or disables the bet submission button based on game state.
+     * Users can still prepare bets, but cannot submit them when disabled.
+     * @param enabled - Whether betting is currently allowed.
+     */
+    public setEnabled(enabled: boolean) {
+        this.betButton.disabled = !enabled;
+        if (!enabled) {
+            this.betButton.title = "Betting is only allowed during the BET phase";
+        } else {
+            this.betButton.title = "";
+        }
     }
 
     // Call this to reset/clear current bets (if not submitted, though we don't track state yet)

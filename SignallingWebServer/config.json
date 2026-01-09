@@ -5,6 +5,7 @@
 	"streamer_port": "8888",
 	"player_port": "8080",
 	"sfu_port": "8889",
+	"game_port": "8081",
 	"serve": true,
 	"http_root": "C:\\Users\\heita\\Documents\\Projects\\signaling_server\\PixelStreamingInfrastructure\\SignallingWebServer\\www",
 	"homepage": "game.html",

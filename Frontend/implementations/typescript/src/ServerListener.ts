@@ -59,6 +59,7 @@ export type GameEventCallback = (eventName: string, data: GameEventData) => void
 export class ServerListener {
     private socket: Socket;
     private url: string;
+    private _currentGameState: string = "";
 
     // Public callbacks that can be assigned by the consumer
     public onSync?: SyncCallback;
@@ -98,6 +99,7 @@ export class ServerListener {
 
         // Handle 'sync' event
         this.socket.on("sync", (data: SyncData) => {
+            this._currentGameState = data.currentStep;
             if (this.onSync) {
                 this.onSync(data);
             }
@@ -114,11 +116,31 @@ export class ServerListener {
         const eventNames = ["start", "deal", "bet", "close", "calculate", "greet"];
         eventNames.forEach(eventName => {
             this.socket.on(eventName, (data: GameEventData) => {
+                this._currentGameState = eventName;
                 if (this.onGameEvent) {
                     this.onGameEvent(eventName, data);
                 }
             });
         });
+    }
+
+    /**
+     * Gets the current game state.
+     */
+    public get currentGameState(): string {
+        return this._currentGameState;
+    }
+
+    /**
+     * Sends an action to the game server.
+     * @param actionPayload - The action data to send.
+     */
+    public sendAction(actionPayload: any): void {
+        if (!this.socket.connected) {
+            console.warn("[ServerListener] Cannot send action: not connected to server");
+            return;
+        }
+        this.socket.emit("action", actionPayload);
     }
 
     /**

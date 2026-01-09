@@ -14,6 +14,9 @@ import { beautify, IProgramOptions } from './Utils';
 import { initInputHandler } from './InputHandler';
 import { Command, Option } from 'commander';
 import { initialize } from 'express-openapi';
+import { Server as SocketIOServer, Socket } from 'socket.io';
+import { createServer } from 'http';
+import { SimpleGame } from './games/SimpleGame';
 
 // eslint-disable-next-line  @typescript-eslint/no-unsafe-assignment
 const pjson = require('../package.json');
@@ -96,6 +99,11 @@ program
         '--sfu_port <port>',
         'Sets the listening port for SFU connections.',
         config_file.sfu_port || '8889'
+    )
+    .option(
+        '--game_port <port>',
+        'Sets the listening port for Game connections.',
+        config_file.game_port || '8081'
     )
     .option(
         '--max_players <number>',
@@ -299,3 +307,65 @@ if (options.rest_api) {
         }
     });
 }
+
+// Game Server Implementation
+const gamePort = parseInt(options.game_port as string) || 8081;
+const gameHttpServer = createServer();
+const io = new SocketIOServer(gameHttpServer, {
+    cors: { origin: '*' }
+});
+
+gameHttpServer.listen(gamePort, () => {
+    Logger.info(`[GameBrain] is listening on port ${gamePort}`);
+});
+
+// Initialize the game
+const game = new SimpleGame();
+
+// Forward game state changes to all clients
+game.on(
+    'stateChange',
+    (data: { sessionId: string; state: { name: string; duration: number }; serverTime: number }) => {
+        const payload = {
+            sessionId: data.sessionId,
+            step: data.state.name,
+            serverTime: data.serverTime,
+            duration: data.state.duration
+        };
+
+        Logger.info(`Broadcasting event: ${data.state.name}`);
+        io.emit(data.state.name, payload);
+    }
+);
+
+// Start the game loop
+game.start();
+
+io.on('connection', (socket: Socket) => {
+    Logger.info(`New client connected: ${socket.id}`);
+
+    // Send sync data
+    const syncData: { sessionId: string; currentState: string; remainingTime: number; serverTime: number } =
+        game.getSyncData();
+    if (syncData) {
+        socket.emit('sync', {
+            sessionId: syncData.sessionId,
+            currentStep: syncData.currentState,
+            nextEventIn: Math.ceil(syncData.remainingTime / 1000),
+            nextEventName: 'unknown',
+            serverTime: syncData.serverTime
+        });
+    } else {
+        socket.emit('nosession', { message: 'Game not running.' });
+    }
+
+    // Handle client actions
+    socket.on('action', (actionPayload: any) => {
+        console.log(`Received action from ${socket.id}: ${JSON.stringify(actionPayload)}`);
+        game.handleAction(socket.id, actionPayload);
+    });
+
+    socket.on('disconnect', () => {
+        Logger.info(`Client disconnected: ${socket.id}`);
+    });
+});

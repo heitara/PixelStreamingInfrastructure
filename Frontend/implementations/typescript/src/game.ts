@@ -12,11 +12,11 @@ PixelStreamingApplicationStyles.applyStyleSheet();
 let game: Game = null;
 const socketConfig = {
 	url: "http://localhost:8081",
-	autoConnect: !true
+	autoConnect: true
 }
 
 document.body.onload = function() {
-	const initialConfig:  Partial<AllSettings> = {} as;
+	const initialConfig:  Partial<AllSettings> = {};
 	//set config parameters here
 	initialConfig.StreamerId = 'SFU';
 	initialConfig.AutoConnect = true;
@@ -48,19 +48,29 @@ document.body.onload = function() {
     // Initialize Game Controls
     const gameControls = new GameControls(DefaultGameControlsConfig);
 
-	game = new Game(stream, gameControls);
+	game = new Game(stream, gameControls, socketConfig.url);
 
 	const listener = new ServerListener(socketConfig.url);
 
 	listener.onSync = (data) => {
 		console.log(`Sync: ${data.sessionId}, Step: ${data.currentStep}`);
-		// Update Game object look and feel here
+		// Update state indicator
+		gameControls.updateStateIndicator(data.currentStep);
+		// Enable/disable betting based on state
+		game.updateBettingState(data.currentStep);
 	};
 
 	listener.onGameEvent = (eventName, data) => {
 		console.log(`Event ${eventName}: ${data.step}`);
-		// Trigger game animations or state changes
+		// Update state indicator
+		gameControls.updateStateIndicator(eventName);
+		// Enable/disable betting based on state
+		game.updateBettingState(eventName);
 	};
+
+	// Pass listener to game
+	game.setServerListener(listener);
+
 	if (socketConfig.autoConnect) {
 		listener.connect();
 	}
@@ -71,18 +81,43 @@ class Game {
 
 	private _pixelStreaming : PixelStreaming;
     private _gameControls: GameControls;
+	private _bettingUI: BettingInterface;
+	private _serverListener: ServerListener | null = null;
 
-	constructor (pixelStreaming : PixelStreaming, gameControls: GameControls) {
+	constructor (pixelStreaming : PixelStreaming, gameControls: GameControls, serverUrl: string) {
 		this._pixelStreaming = pixelStreaming;
 		this._gameControls = gameControls;
 		this._createBettingControls();
 	}
 
 	private _createBettingControls() {
-		const bettingUI = new BettingInterface();
+		this._bettingUI = new BettingInterface();
         
         this._gameControls.clearContent();
-        this._gameControls.addContent(bettingUI.getRootElement());
+        this._gameControls.addContent(this._bettingUI.getRootElement());
+	}
+
+	public setServerListener(listener: ServerListener) {
+		this._serverListener = listener;
+		
+		// Set up bet submission callback
+		this._bettingUI.setOnSubmit((betData: any) => {
+			if (this._serverListener) {
+				const actionPayload = {
+					type: "bet",
+					bets: betData,
+					timestamp: Date.now()
+				};
+				console.log("Sending bet to server:", actionPayload);
+				this._serverListener.sendAction(actionPayload);
+			}
+		});
+	}
+
+	public updateBettingState(state: string) {
+		// Enable betting only during "bet" state
+		const isBettingAllowed = state.toLowerCase() === 'bet';
+		this._bettingUI.setEnabled(isBettingAllowed);
 	}
 
 }

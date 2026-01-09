@@ -2,6 +2,7 @@ import { GameControlsConfig } from './game-config';
 
 export class GameControls {
     private element: HTMLElement;
+    private stateIndicator: HTMLElement;
     private config: GameControlsConfig;
     private isDragging: boolean = false;
     private dragStartX: number = 0;
@@ -18,7 +19,41 @@ export class GameControls {
             return;
         }
 
+        this.createStateIndicator();
         this.init();
+    }
+
+    private createStateIndicator() {
+        this.stateIndicator = document.createElement('div');
+        this.stateIndicator.className = 'game-state-indicator';
+        this.stateIndicator.style.position = 'absolute';
+        this.stateIndicator.style.top = '10px';
+        this.stateIndicator.style.left = '10px';
+        this.stateIndicator.style.padding = '8px 16px';
+        this.stateIndicator.style.borderRadius = '4px';
+        this.stateIndicator.style.fontWeight = 'bold';
+        this.stateIndicator.style.fontSize = '14px';
+        this.stateIndicator.style.textTransform = 'uppercase';
+        this.stateIndicator.style.backgroundColor = '#666';
+        this.stateIndicator.style.color = '#fff';
+        this.stateIndicator.style.zIndex = '1000';
+        this.stateIndicator.innerText = 'WAITING...';
+        this.element.appendChild(this.stateIndicator);
+    }
+
+    /**
+     * Updates the game state indicator with the current state.
+     * @param state - The current game state name.
+     */
+    public updateStateIndicator(state: string) {
+        this.stateIndicator.innerText = state.toUpperCase();
+        
+        // Green for bet state, grey for others
+        if (state.toLowerCase() === 'bet') {
+            this.stateIndicator.style.backgroundColor = '#28a745';
+        } else {
+            this.stateIndicator.style.backgroundColor = '#666';
+        }
     }
 
     private init() {
@@ -52,6 +87,7 @@ export class GameControls {
     public addContent(content: HTMLElement) {
         console.log('Adding content to Game Controls');
         this.element.appendChild(content);
+        this.element.appendChild(this.stateIndicator); // Re-add state indicator on top
     }
 
     private onMouseDown(event: MouseEvent) {
