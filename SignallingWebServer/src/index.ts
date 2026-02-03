@@ -239,6 +239,10 @@ if (options.log_config) {
 }
 
 const app = express();
+
+// Add JSON body parser middleware for REST API
+app.use(express.json());
+
 if (options.reverse_proxy) {
     app.set('trust proxy', options.reverse_proxy_num_proxies);
 }
@@ -319,8 +323,8 @@ gameHttpServer.listen(gamePort, () => {
     Logger.info(`[GameBrain] is listening on port ${gamePort}`);
 });
 
-// Initialize the game
-const game = new SimpleGame();
+// Initialize the game with signalling server reference
+const game = new SimpleGame(signallingServer);
 
 // Forward game state changes to all clients
 game.on(
@@ -335,8 +339,30 @@ game.on(
 
         Logger.info(`Broadcasting event: ${data.state.name}`);
         io.emit(data.state.name, payload);
+
+        Logger.info(`broadcastGameStateToStreamers!`);
+        // Broadcast game state to all UE streamers
+        game.broadcastGameStateToStreamers();
     }
 );
+
+// Listen for streamer connections to send initial game state
+signallingServer.streamerRegistry.on('added', (streamerId: string) => {
+    Logger.info(`[SimpleGame] Streamer connected: ${streamerId}, sending game state`);
+    game.sendGameStateToStreamer(streamerId);
+});
+
+// // Listen for player connections to broadcast updated game state to all streamers
+// signallingServer.playerRegistry.on('added', (playerId: string) => {
+//     Logger.info(`[SimpleGame] Player connected: ${playerId}, broadcasting game state to streamers`);
+//     game.broadcastGameStateToStreamers();
+// });
+
+// // Listen for player disconnections to broadcast updated game state to all streamers
+// signallingServer.playerRegistry.on('removed', (playerId: string) => {
+//     Logger.info(`[SimpleGame] Player disconnected: ${playerId}, broadcasting game state to streamers`);
+//     game.broadcastGameStateToStreamers();
+// });
 
 // Start the game loop
 game.start();

@@ -10,6 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 export abstract class AbstractGame extends EventEmitter {
     protected states: GameState[] = [];
     protected currentStateIndex: number = -1;
+    protected previousStateIndex: number = -1;
     protected timer: NodeJS.Timeout | null = null;
     protected sessionId: string = '';
     protected stateStartTime: number = 0;
@@ -24,6 +25,7 @@ export abstract class AbstractGame extends EventEmitter {
         }
         this.sessionId = uuidv4();
         this.currentStateIndex = -1;
+        this.previousStateIndex = -1;
         this.nextState();
     }
 
@@ -44,6 +46,9 @@ export abstract class AbstractGame extends EventEmitter {
             }
         }
 
+        // Track previous state before advancing
+        this.previousStateIndex = this.currentStateIndex;
+
         // Advance index
         this.currentStateIndex += 1;
         if (this.currentStateIndex >= this.states.length) {
@@ -60,6 +65,7 @@ export abstract class AbstractGame extends EventEmitter {
         this.emit('stateChange', {
             sessionId: this.sessionId,
             state: currentState,
+            previousState: this.getPreviousState(),
             serverTime: new Date().toISOString()
         });
 
@@ -93,6 +99,13 @@ export abstract class AbstractGame extends EventEmitter {
     public getCurrentState(): GameState | null {
         if (this.currentStateIndex >= 0 && this.currentStateIndex < this.states.length) {
             return this.states[this.currentStateIndex];
+        }
+        return null;
+    }
+
+    public getPreviousState(): GameState | null {
+        if (this.previousStateIndex >= 0 && this.previousStateIndex < this.states.length) {
+            return this.states[this.previousStateIndex];
         }
         return null;
     }
