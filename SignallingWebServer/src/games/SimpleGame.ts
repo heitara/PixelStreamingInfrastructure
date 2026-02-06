@@ -48,12 +48,16 @@ export class SimpleGame extends AbstractGame {
         }
 
         const message: GameStateMessage = {
-            type: 'gameStateUpdate',
-            sessionId: this.sessionId,
-            currentState: this.getCurrentState(),
-            previousState: this.getPreviousState(),
-            serverTime: new Date().toISOString(),
-            triggerScene: this.getCurrentState() ? this.getCurrentState()!.name : 'idle'
+            type: 'command',
+            action: 'gameStateUpdate',
+            data: {
+                sessionId: this.sessionId,
+                currentState: this.getCurrentState(),
+                previousState: this.getPreviousState(),
+                serverTime: new Date().toISOString(),
+                triggerScene: this.getCurrentState() ? this.getCurrentState()!.name : 'idle',
+                log: `Broadcasting game state to streamer ${defaultStreamerId} at ${new Date().toISOString()}`
+            }
         };
 
         streamer.sendMessage(message as BaseMessage);
@@ -77,12 +81,16 @@ export class SimpleGame extends AbstractGame {
         }
 
         const message: GameStateMessage = {
-            type: 'gameStateUpdate',
-            sessionId: this.sessionId,
-            currentState: this.getCurrentState(),
-            previousState: this.getPreviousState(),
-            serverTime: new Date().toISOString(),
-            triggerScene: this.getCurrentState() ? this.getCurrentState()!.name : 'idle'
+            type: 'command',
+            action: 'gameStateUpdate',
+            data: {
+                sessionId: this.sessionId,
+                currentState: this.getCurrentState(),
+                previousState: this.getPreviousState(),
+                serverTime: new Date().toISOString(),
+                triggerScene: this.getCurrentState() ? this.getCurrentState()!.name : 'idle',
+                log: `Sending game state to streamer ${streamerId} at ${new Date().toISOString()}`
+            }
         };
 
         streamer.sendMessage(message as BaseMessage);
