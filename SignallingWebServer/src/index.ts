@@ -17,6 +17,12 @@ import { initialize } from 'express-openapi';
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import { createServer } from 'http';
 import { SimpleGame } from './games/SimpleGame';
+import configHandler from './paths/config';
+import playersHandler from './paths/players';
+import playerByIdHandler from './paths/players/{playerId}';
+import statusHandler from './paths/status';
+import streamersHandler from './paths/streamers';
+import streamerByIdHandler from './paths/streamers/{streamerId}';
 
 // eslint-disable-next-line  @typescript-eslint/no-unsafe-assignment
 const pjson = require('../package.json');
@@ -255,12 +261,21 @@ const serverOpts: IServerConfig = {
     maxSubscribers: options.max_players
 };
 
-if (options.serve) {
+const shouldServerStart = options.serve || options.rest_api;
+if (shouldServerStart) {
     const webserverOptions: IWebServerConfig = {
         httpPort: options.player_port,
         root: options.http_root,
-        homepageFile: options.homepage
+        homepageFile: options.homepage,
+        serveStatic: options.serve
     };
+
+    if (options.serve) {
+        Logger.info('Static file serving enabled.');
+    } else if (options.rest_api) {
+        Logger.info('REST API enabled; static file serving disabled.');
+    }
+
     if (options.https) {
         webserverOptions.httpsPort = options.https_port;
         const sslKeyPath = path.join(__dirname, '..', options.ssl_key_path);
@@ -288,12 +303,19 @@ if (options.stdin) {
 }
 
 if (options.rest_api) {
-    void initialize({
+    initialize({
         app,
         docsPath: '/api-definition',
         exposeApiDocs: true,
         apiDoc: './apidoc/api-definition-base.yml',
-        paths: './dist/paths',
+        paths: [
+            { path: '/config', module: configHandler },
+            { path: '/players', module: playersHandler },
+            { path: '/players/{playerId}', module: playerByIdHandler },
+            { path: '/status', module: statusHandler },
+            { path: '/streamers', module: streamersHandler },
+            { path: '/streamers/{streamerId}', module: streamerByIdHandler }
+        ],
         dependencies: {
             signallingServer
         },
@@ -309,7 +331,7 @@ if (options.rest_api) {
                 return Promise.resolve(true);
             }
         }
-    });
+    }).catch((err: unknown) => Logger.error(`REST API initialization failed: ${String(err)}`));
 }
 
 // Game Server Implementation
